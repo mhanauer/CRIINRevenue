@@ -8,6 +8,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 Review revenue.  Get date in mdy format.  Need to change Jul to correct number and add day (1)
 ```{r}
+## Revenue data
+setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/SustainWorkshop/RevenueAnalysis")
+CIN_revenue = read.csv("CH17-37_20190731_123328.csv", header = TRUE)
+
 library(lubridate)
 library(forecast)
 library(ggplot2)
