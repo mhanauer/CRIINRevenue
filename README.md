@@ -23,36 +23,36 @@ head(CIN_revenue)
 CIN_revenue_dat = CIN_revenue
 head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = str_replace_all(CIN_revenue_dat$Year.Month, c("Jan" = "1", "Feb"="2", "Mar"="3", "Apr"="4", "May"="5", "Jun"="6", "Jul"="7", "Aug"="8", "Sep" = "9", "Oct"="10", "Nov"="11", "Dec"="12"))
+head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = paste("1-",CIN_revenue_dat$Year.Month, sep = "")
+head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = dmy(CIN_revenue_dat$Year.Month)
+head(CIN_revenue_dat)
+
 ```
 Now aggregate data by month
 ```{r}
 head(CIN_revenue_dat)
 CIN_revenue_dat_month = data.frame(date =  CIN_revenue_dat$Year.Month, revenue = CIN_revenue_dat$Payments)
 CIN_revenue_dat_month$revenue = as.numeric(CIN_revenue_dat_month$revenue)
-
+head(CIN_revenue_dat_month)
 
 CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
 head(CIN_revenue_dat_month)
-colnames(CIN_revenue_dat_month)[1:2] = c("date", "revenue")
-
-head(CIN_revenue_dat_month)
 dim(CIN_revenue_dat_month)
 ```
-Regularly spaced time series.  Which interval should we forecast and what that will help us plan for? Mixed model in time has covariates.
-Convert to TS object
-Money in thousands 
-$31,000 means 31 million
+Regularly spaced time and get rid of June and July those numbers are not ready yet
+
 ```{r}
-CIN_revenue_dat_month$revenue = CIN_revenue_dat_month$revenue 
-typeof(CIN_revenue_dat_month$date)
-
-
+### Get rid of June and July
+CIN_revenue_dat_month[24:25,] = NA
+CIN_revenue_dat_month = na.omit(CIN_revenue_dat_month)
+## Get rid of date
 CIN_revenue_dat_month$date = NULL
-
-CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,6), frequency = 12)
+dim(CIN_revenue_dat_month)
+CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
+CIN_revenue_dat_month_ts
 ```
 Plot the data over time
 Trend: long term increase or increase; Season = short term predictable with some patteron; cyclic: 1 to 2 year trend correlated with some economic event
@@ -62,7 +62,7 @@ ggseasonplot(CIN_revenue_dat_month_ts) +
   ggtitle("Revenue per year")
 
 ## Lag plot 
-gglagplot(CIN_revenue_dat_month)
+#gglagplot(CIN_revenue_dat_month)
 
 ```
 Two time series assumptions
@@ -76,9 +76,11 @@ Use box test to see if the times series is independence
 Acf to see if there is significant auto-correlation at different lags (so lag 1 means the relationship between each time point and the one before it) can also be used for residuals
 Identifies if the time series is stationary tests whether the trend is not constant or not a linear trend.
 ```{r}
-ggAcf(CIN_revenue_dat_month_ts)
+ggAcf(CIN_revenue_dat_month_ts, type = "correlation")
+ggAcf(CIN_revenue_dat_month_ts, type = "partial")
+
 dim(CIN_revenue_dat_month)
-2/sqrt(25)
+2/sqrt(23)
 
 ### More tests for autocorrelation
 library(urca)
@@ -111,7 +113,7 @@ CIN_revenue_dat_month$time = 1:dim(CIN_revenue_dat_month)[1]
 ### ### Create a quarter variable
 CIN_revenue_dat_month$quarter = quarter(CIN_revenue_dat_month$date)
 
-CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,6), frequency = 12)
+CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
 CIN_revenue_dat_month_ts
 
@@ -155,18 +157,26 @@ d = degree of difference in y
 
 Order = (p,d,q)
 
-Develop univariate model, because you do not have to select what values of other covariates will be
+Develop univariate model, because you do not have to select what values of other covariates will be 
+
+Maybe phi is the average correlation between all time points and the difference according p (all t minus 1's).  For example, p = 1 is the all t minus 1's between. Phi is the average correlation between t and minus 1's.
 ```{r}
-CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,1]
+CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
 head(CIN_revenue_dat_unit)
 
 arima_model =  auto.arima(CIN_revenue_dat_unit, seasonal = FALSE)
 summary(arima_model)
 
-head(CIN_revenue_dat_unit)
+#ggAcf()
+
 
 forecast_model = forecast(arima_model)
 summary(forecast_model)
+plot(forecast_model)
+
+CIN_revenue_dat_month_ts[,2]
+32361367 - 31926558
+diff(CIN_revenue_dat_month_ts[,2], lag = 2)
 ```
 No predict
 
