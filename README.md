@@ -11,7 +11,7 @@ Review revenue.  Get date in mdy format.  Need to change Jul to correct number a
 ## Revenue data
 setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/SustainWorkshop/RevenueAnalysis")
 CIN_revenue = read.csv("CH17-37_20190731_123328.csv", header = TRUE)
-
+head(CIN_revenue)
 library(lubridate)
 library(forecast)
 library(ggplot2)
@@ -133,13 +133,16 @@ library(lmtest)
 library(car)
 outlierTest(lm_ts)
 bptest(lm_ts)
+CV(lm_ts)
 ```
 Use the model not just to predict, but to predict based on different scenerios
 This would be where we use the test data set, which is five percent so 5 values.
 
-Don't do, because you have to predict what many of these variable will be
+Use third quatile of the number of payments to see what would have happen if we can increase the number of payments.
 ```{r}
-new_dat = data.frame(revenue = rnorm(n = 12, mean = 32000000, sd = 100000), quarter = rep(1:4, 3), number_pay = rnorm(n = 12, mean = 45368, sd = 100000), time = 25:36)
+summary(CIN_revenue_dat_month_ts[,3:5])
+
+new_dat = data.frame(quarter = rep(1:4, 3), number_pay = rnorm(n = 12, mean = 58293, sd = 5000), time = 25:36)
 
 predict_lm_ts = forecast(lm_ts, newdata = new_dat)
 predict_lm_ts
@@ -160,6 +163,8 @@ Order = (p,d,q)
 Develop univariate model, because you do not have to select what values of other covariates will be 
 
 Maybe phi is the average correlation between all time points and the difference according p (all t minus 1's).  For example, p = 1 is the all t minus 1's between. Phi is the average correlation between t and minus 1's.
+
+
 ```{r}
 CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
 head(CIN_revenue_dat_unit)
@@ -169,15 +174,59 @@ summary(arima_model)
 
 #ggAcf()
 
-
 forecast_model = forecast(arima_model)
 summary(forecast_model)
 plot(forecast_model)
 
+
+```
+Prove differening
+```{r}
 CIN_revenue_dat_month_ts[,2]
 32361367 - 31926558
 diff(CIN_revenue_dat_month_ts[,2], lag = 2)
 ```
+
+
+Try autoregressive model with predictors
+```{r}
+CIN_revenue_dat_month_ts[,2]
+CIN_revenue_dat_month_ts[,5]
+
+arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5], seasonal = FALSE)
+summary(arima_model_dy)
+summary(arima_model)
+#ggAcf()
+forecast_model_dy = forecast(arima_model_dy, xreg = new_dat)
+
+summary(forecast_model_dy)
+plot(forecast_model_dy)
+autoplot(forecast_model_dy)
+
+```
+Compare dynamic and non-dynamic model
+So the extra variables are not related to revenue so changing them won't really matter
+```{r}
+accuracy(arima_model_dy)
+accuracy(arima_model)
+dm.test(residuals(forecast_model_dy), residuals(forecast_model), h =1, alternative = "less")
+dm.test(arima_model_dy, arima_model)
+
+```
+Try neural network feed forward model
+
+nnetar
+dm.test
+```{r}
+nn_auto = nnetar(CIN_revenue_dat_unit)
+summary(nn_auto)
+CVar(CIN_revenue_dat_unit, k = 2)
+nn_auto
+forecast_nn_auto = forecast(nn_auto)
+forecast_nn_auto
+dm.test(nn_auto, arima_model)
+```
+
 No predict
 
 
