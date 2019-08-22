@@ -139,6 +139,7 @@ Use the model not just to predict, but to predict based on different scenerios
 This would be where we use the test data set, which is five percent so 5 values.
 
 Use third quatile of the number of payments to see what would have happen if we can increase the number of payments.
+58293
 ```{r}
 summary(CIN_revenue_dat_month_ts[,3:5])
 
@@ -171,7 +172,7 @@ head(CIN_revenue_dat_unit)
 
 arima_model =  auto.arima(CIN_revenue_dat_unit, seasonal = FALSE)
 summary(arima_model)
-
+checkresiduals(arima_model)
 #ggAcf()
 
 forecast_model = forecast(arima_model)
@@ -195,7 +196,8 @@ CIN_revenue_dat_month_ts[,5]
 
 arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5], seasonal = FALSE)
 summary(arima_model_dy)
-summary(arima_model)
+checkresiduals(arima_model_dy)
+
 #ggAcf()
 forecast_model_dy = forecast(arima_model_dy, xreg = new_dat)
 
@@ -214,17 +216,34 @@ dm.test(arima_model_dy, arima_model)
 
 ```
 Try neural network feed forward model
-
 nnetar
 dm.test
+So the predictions are the exact same for each month
 ```{r}
 nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
-CVar(CIN_revenue_dat_unit, k = 2)
 nn_auto
-forecast_nn_auto = forecast(nn_auto)
-forecast_nn_auto
-dm.test(nn_auto, arima_model)
+forecast_nn_auto = forecast(nn_auto, h = 12)
+summary(forecast_nn_auto)
+autoplot(forecast_nn_auto)
+
+accuracy(nn_auto)
+accuracy(arima_model)
+dm.test(residuals(nn_auto), residuals(arima_model), h = 1, alternative = "less")
+
+### Dynamic
+new_dat_ex = data.frame(quarter = rep(1:4, 3), number_pay = rnorm(n = 12, mean = 10000, sd = 1000), time = 25:36)
+nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5])
+summary(nn_auto_dy)
+nn_auto_dy
+accuracy(nn_auto_dy)
+accuracy(nn_auto)
+dm.test(residuals(nn_auto_dy), residuals(nn_auto), h = 1, alternative = "less")
+
+forecast_nn_auto_dy = forecast(nn_auto_dy, xreg = new_dat, h = 12)
+forecast_nn_auto_dy
+autoplot(forecast_nn_auto_dy)
+
 ```
 
 No predict
