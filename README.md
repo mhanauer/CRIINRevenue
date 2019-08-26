@@ -28,6 +28,9 @@ CIN_revenue_dat$Year.Month = paste("1-",CIN_revenue_dat$Year.Month, sep = "")
 head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = dmy(CIN_revenue_dat$Year.Month)
 head(CIN_revenue_dat)
+library(prettyR)
+describe.factor(CIN_revenue_dat$Financial.Class.Value)
+describe.factor(CIN_revenue_dat$location)
 
 ```
 Now aggregate data by month
@@ -206,25 +209,38 @@ autoplot(forecast_model_dy)
 ```
 Compare dynamic and non-dynamic model
 So the extra variables are not related to revenue so changing them won't really matter
+Matt figure out what h means
 ```{r}
 accuracy(arima_model_dy)
 accuracy(arima_model)
 dm.test(residuals(forecast_model_dy), residuals(forecast_model), h =1, alternative = "less")
-dm.test(arima_model_dy, arima_model)
 
 ```
 Try neural network feed forward model
 
 nnetar
 dm.test
+
+Look into negative accuracy numbers
+Get prediction internvals
 ```{r}
 nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
-CVar(CIN_revenue_dat_unit, k = 2)
 nn_auto
 forecast_nn_auto = forecast(nn_auto)
-forecast_nn_auto
-dm.test(nn_auto, arima_model)
+summary(forecast_nn_auto)
+accuracy(nn_auto)
+accuracy(arima_model)
+dm.test(residuals(nn_auto), residuals(arima_model),h =1,alternative = "less")
+
+
+### Dynamic model
+nn_auto_dy =  nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5])
+summary(nn_auto_dy)
+accuracy(nn_auto_dy)
+accuracy(nn_auto)
+forecast_nn_auto_dy = forecast(nn_auto_dy, xreg = new_dat)
+forecast_nn_auto_dy
 ```
 
 No predict
