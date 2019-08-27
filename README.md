@@ -200,9 +200,7 @@ autoplot(forecast_model_dy)
 
 ```
 Try neural network feed forward model
-
-nnetar
-dm.test
+Inputs: Values for the covariates in the model
 ```{r}
 nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
@@ -219,10 +217,11 @@ accuracy(arima_model)
 dm.test(residuals(nn_auto), residuals(arima_model))
 
 
-### Forcast
+### Forecast
 forecast_nn_auto = forecast(nn_auto, PI = TRUE)
 forecast_nn_auto
-summary(forecast_nn_auto)
+autoplot(forecast_nn_auto)
+
 ```
 
 
