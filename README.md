@@ -29,7 +29,12 @@ CIN_revenue_dat$Year.Month = paste("1-",CIN_revenue_dat$Year.Month, sep = "")
 head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = dmy(CIN_revenue_dat$Year.Month)
 head(CIN_revenue_dat)
-
+#### Need to remove the $ we are removing the .00 so divide by 100 to get original payment
+#### Then divide by 100 to get estimates in the hundreds of thousands
+CIN_revenue_dat$Payments = gsub("\\D", "", CIN_revenue_dat$Payments)
+CIN_revenue_dat$Payments = as.numeric(CIN_revenue_dat$Payments) 
+CIN_revenue_dat$Payments = CIN_revenue_dat$Payments / 100
+head(CIN_revenue_dat)
 ```
 Now aggregate data by month
 ```{r}
@@ -90,13 +95,10 @@ ur.kpss: Whether there some consent trend or a constent with a linear component 
 ggAcf(CIN_revenue_dat_month_ts, type = "correlation")
 ggAcf(CIN_revenue_dat_month_ts, type = "partial")
 
-dim(CIN_revenue_dat_month)
-2/sqrt(23)
-
 ### More tests for autocorrelation
 
-Box.test(CIN_revenue_dat_month$revenue, type = "Ljung-Box")
-summary(ur.kpss(CIN_revenue_dat_month$revenue))
+Box.test(CIN_revenue_dat_month_ts, type = "Ljung-Box")
+summary(ur.kpss(CIN_revenue_dat_month_ts))
 
 ## If you want to adjust for the days of the year
 #CIN_revenue_dat_month_ts / monthdays(CIN_revenue_dat_month_ts)
@@ -122,21 +124,15 @@ CIN_revenue_dat_month$quarter = quarter(CIN_revenue_dat_month$date)
 
 CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
+
+### Get rid of June and July
+
 CIN_revenue_dat_month_ts
 ```
 
 
 
-Use the model not just to predict, but to predict based on different scenerios
-This would be where we use the test data set, which is five percent so 5 values.
 
-Use third quatile of the number of payments to see what would have happen if we can increase the number 
-of payments.
-```{r}
-summary(CIN_revenue_dat_month_ts[,3:5])
-
-new_dat = data.frame(quarter = rep(1:4, 3), number_pay = rnorm(n = 12, mean = 58293, sd = 5000), time = 25:36)
-```
 Autoregressive model is like a lagged version of a linear model with the previous time point values as predictors.  So the value at time point 2, 3,..n predicting time point one?
 P is the autoregressive parameter, which is the number of time points we go back to so we include each time point minus the previous as an average parameter if AR2 then each time point and first and second difference.
 
@@ -172,8 +168,6 @@ summary(ur.kpss(residuals(arima_model)))
 forecast_model = forecast(arima_model)
 summary(forecast_model)
 autoplot(forecast_model)
-
-
 ```
 Prove differening
 ```{r}
@@ -181,28 +175,73 @@ CIN_revenue_dat_month_ts[,2]
 32361367 - 31926558
 diff(CIN_revenue_dat_month_ts[,2], lag = 2)
 ```
+Use the model not just to predict, but to predict based on different scenerios
+This would be where we use the test data set, which is five percent so 5 values.
 
+Use third quatile of the number of payments to see what would have happen if we can increase the number 
+of payments.
+```{r}
+summary(CIN_revenue_dat_month_ts[,3:5])
+describe(CIN_revenue_dat_month_ts[,3:5])
+
+new_dat = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rep(5680, 12), time = 24:(24+11))
+new_dat
+
+number_pay = rep(5680, 12)
+
+```
 
 Try autoregressive model with predictors
 ```{r}
 CIN_revenue_dat_month_ts[,2]
 CIN_revenue_dat_month_ts[,5]
+CIN_revenue_dat_month_ts
 
-arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5], seasonal = FALSE)
+arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], seasonal = FALSE)
 summary(arima_model_dy)
 summary(arima_model)
 #ggAcf()
-forecast_model_dy = forecast(arima_model_dy, xreg = new_dat)
-
+forecast_model_dy = forecast(arima_model_dy, xreg = number_pay)
 summary(forecast_model_dy)
-plot(forecast_model_dy)
 autoplot(forecast_model_dy)
+forecast_model_dy
 
 ```
+Example from book
+```{r}
+### Try example from book
+head(elecdaily)
+
+xreg <- cbind(MaxTemp = elecdaily[, "Temperature"],MaxTempSq = elecdaily[, "Temperature"]^2,Workday = elecdaily[, "WorkDay"])
+
+new_dat_test = cbind(MaxTemp=rep(26,14), MaxTempSq=rep(26^2,14),Workday=c(0,1,0,0,1,1,1,1,1,0,0,1,1,1))
+
+
+test_auto = auto.arima(elecdaily[,1], xreg = xreg)
+checkresiduals(test_auto)
+
+fcast <- forecast(test_auto, xreg = new_dat_test)
+summary(fcast)
+autoplot(fcast) + ylab("Electricity demand (GW)")
+```
+
+
 Try neural network feed forward model
 Inputs: Values for the covariates in the model
+Box-Cox set to auto to find a transformation of the data that makes it normal if no change is needed defaults to data.
+
+Inputs: number of covariates
+Hidden layers: unknown
+Output: usually just one the predicted values
+Little p = number of lags to include
+Big p = number of lags for season series
+k = number of nodes or functions in the one hidden layer
+
+I think NNAR(1,1,2) mean one non-lagged valuem and maybe 1 seasonal lagged value, and two nodes
+2-2-1 mean two inputs (one non-seasonal lag and the original data), and two nodes, 9 weights means 9 regression coeffients going to the hidden nodes
+Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
-nn_auto = nnetar(CIN_revenue_dat_unit)
+nn_auto = nnetar(CIN_revenue_dat_unit, lambda = "auto")
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
@@ -223,8 +262,69 @@ forecast_nn_auto
 autoplot(forecast_nn_auto)
 
 ```
+Try and plot nnetar
+Doesn't seem to work.
+```{r}
+library(devtools)
+source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
+
+plot.nnet(nn_auto)
+
+nn_auto
+
+```
+Try neural network with multiple variables
+```{r}
+nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5], lambda = "auto")
+accuracy(nn_auto_dy)
+accuracy(nn_auto)
+
+results_test = list()
+n = 1:3
+for(i in 1:length(n)){
+results_test[[i]] = dm.test(residuals(nn_auto_dy), residuals(nn_auto), h = n[[i]])
+}
+results_test
+
+```
+Trying predicting them using new data
+```{r}
+
+summary(CIN_revenue_dat_month_ts[,3:5])
+describe(CIN_revenue_dat_month_ts[,3:5])
+
+new_dat = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rnorm(n = 12, mean = 56010, sd = 12305.44), time = 24:(24+11))
+
+new_dat_1 = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rnorm(n = 12, mean = 900000, sd = 12305.44), time = 24:24+11)
 
 
+forecast_model_nn_dy = forecast(nn_auto_dy, xreg = new_dat, PI = TRUE)
+summary(forecast_model_nn_dy)
+autoplot(forecast_model_nn_dy)
+
+```
+Need to go back and use test and validation and figure that out.
+Try CARET model
+Not enough data
+```{r}
+library(caret)
+
+inTrain = createDataPartition(y = CIN_revenue_dat_month$time, p = .75, list = FALSE)
+training = CIN_revenue_dat_month[inTrain,]
+testing = CIN_revenue_dat_month[-inTrain,] 
+
+fitControl <- trainControl(
+  method = "repeatedcv",
+  number = 1,
+  repeats = 10)
+
+gbmFit1 <- train(revenue ~ ., data = training, 
+                 method = "gbm", 
+                 trControl = fitControl,
+                 verbose = FALSE)
+
+
+```
 
 
 
