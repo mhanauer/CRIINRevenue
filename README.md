@@ -124,10 +124,6 @@ CIN_revenue_dat_month$quarter = quarter(CIN_revenue_dat_month$date)
 
 CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
-
-### Get rid of June and July
-
-CIN_revenue_dat_month_ts
 ```
 
 
@@ -178,17 +174,11 @@ diff(CIN_revenue_dat_month_ts[,2], lag = 2)
 Use the model not just to predict, but to predict based on different scenerios
 This would be where we use the test data set, which is five percent so 5 values.
 
-Use third quatile of the number of payments to see what would have happen if we can increase the number 
-of payments.
+Need to keep everything constant, but one value.  
 ```{r}
 summary(CIN_revenue_dat_month_ts[,3:5])
 describe(CIN_revenue_dat_month_ts[,3:5])
-
-new_dat = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rep(5680, 12), time = 24:(24+11))
-new_dat
-
-number_pay = rep(5680, 12)
-
+number_pay = seq(from= 5680, to= (5680+1200), by = 100)
 ```
 
 Try autoregressive model with predictors
@@ -205,7 +195,6 @@ forecast_model_dy = forecast(arima_model_dy, xreg = number_pay)
 summary(forecast_model_dy)
 autoplot(forecast_model_dy)
 forecast_model_dy
-
 ```
 Example from book
 ```{r}
@@ -245,37 +234,29 @@ nn_auto = nnetar(CIN_revenue_dat_unit, lambda = "auto")
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
-ggAcf(residuals(nn_auto))
-ggPacf(residuals(nn_auto))
-Box.test(residuals(nn_auto), type = "Ljung-Box")
-summary(ur.kpss(residuals(nn_auto)))
+residuals_nn_auto = data.frame(residuals(nn_auto))
+residuals_nn_auto = apply(residuals_nn_auto, 1, mean)
+residuals_nn_auto = data.frame(residuals_nn_auto)
+ggAcf(residuals(residuals_nn_auto))
+ggPacf(residuals(residuals_nn_auto))
+Box.test(residuals_nn_auto, type = "Ljung-Box")
+summary(ur.kpss(residuals_nn_auto$residuals_nn_auto))
 
 ### compare accuracy
 accuracy(nn_auto)
 accuracy(arima_model)
-dm.test(residuals(nn_auto), residuals(arima_model))
+dm.test(residuals_nn_auto$residuals_nn_auto, residuals(arima_model))
 
 
 ### Forecast
 forecast_nn_auto = forecast(nn_auto, PI = TRUE)
 forecast_nn_auto
 autoplot(forecast_nn_auto)
-
 ```
-Try and plot nnetar
-Doesn't seem to work.
-```{r}
-library(devtools)
-source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
 
-plot.nnet(nn_auto)
-
-nn_auto
-
-```
 Try neural network with multiple variables
 ```{r}
-nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5], lambda = "auto")
+nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], lambda = "auto")
 accuracy(nn_auto_dy)
 accuracy(nn_auto)
 
@@ -289,21 +270,60 @@ results_test
 ```
 Trying predicting them using new data
 ```{r}
-
 summary(CIN_revenue_dat_month_ts[,3:5])
 describe(CIN_revenue_dat_month_ts[,3:5])
+number_pay = seq(from= 5680, to= (5680+1200), by = 100)
+number_pay_1 = rep(5680, 12)
 
-new_dat = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rnorm(n = 12, mean = 56010, sd = 12305.44), time = 24:(24+11))
-
-new_dat_1 = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rnorm(n = 12, mean = 900000, sd = 12305.44), time = 24:24+11)
-
-
-forecast_model_nn_dy = forecast(nn_auto_dy, xreg = new_dat, PI = TRUE)
+forecast_model_nn_dy = forecast(nn_auto_dy, xreg = number_pay, PI = TRUE)
 summary(forecast_model_nn_dy)
 autoplot(forecast_model_nn_dy)
 
+
+
+forecast_model_nn_dy_1 = forecast(nn_auto_dy, xreg = number_pay_1, PI = TRUE)
+summary(forecast_model_nn_dy_1)
+autoplot(forecast_model_nn_dy_1)
+
 ```
+Try dynamic simulations
+```{r}
+library(dynsim)
+data(grunfeld, package = "dynsim")
+grunfeld
+library(DataCombine)
+grunfeld <- slide(grunfeld, Var = "invest", GroupVar = "company", TimeVar = "year", NewVar = "InvestLag")
+grunfeld
+
+CIN_revenue_dat_month_dy = slide(CIN_revenue_dat_month, Var = "revenue")
+colnames(CIN_revenue_dat_month_dy)[6] = c("revuneMinus1")
+model_1 = lm(revenue ~ revuneMinus1 + number_pay, data = CIN_revenue_dat_month_dy)
+summary(model_1)
+
+Scen1 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .95),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
+
+Scen2 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .5),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
+
+Scen3 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .05),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
+
+ScenComb <- list(Scen1, Scen2, Scen3)
+
+Sim1 <- dynsim(obj = model_1, ldv = "revuneMinus1", scen = ScenComb, n = 12)
+
+dynsimGG(Sim1)
+```
+
+
+
+
 Need to go back and use test and validation and figure that out.
+
+
+
+
+##################################################################################
+Extra
+##################################################################################
 Try CARET model
 Not enough data
 ```{r}
@@ -326,6 +346,16 @@ gbmFit1 <- train(revenue ~ ., data = training,
 
 ```
 
+Try and plot nnetar
+Doesn't seem to work.
+```{r}
+library(devtools)
+source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
 
+plot.nnet(nn_auto)
+
+nn_auto
+
+```
 
 
