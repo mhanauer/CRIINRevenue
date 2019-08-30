@@ -34,6 +34,8 @@ head(CIN_revenue_dat)
 CIN_revenue_dat$Payments = gsub("\\D", "", CIN_revenue_dat$Payments)
 CIN_revenue_dat$Payments = as.numeric(CIN_revenue_dat$Payments) 
 CIN_revenue_dat$Payments = CIN_revenue_dat$Payments / 100
+## Divide by 1,00,000 to help formatting
+CIN_revenue_dat$Payments = CIN_revenue_dat$Payments 
 head(CIN_revenue_dat)
 ```
 Now aggregate data by month
@@ -46,6 +48,8 @@ head(CIN_revenue_dat_month)
 CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
 head(CIN_revenue_dat_month)
 dim(CIN_revenue_dat_month)
+CIN_revenue_dat_month$revenue = round((CIN_revenue_dat_month$revenue / 1000000),3)
+CIN_revenue_dat_month$revenue
 ```
 Regularly spaced time and get rid of June and July those numbers are not ready yet
 ```{r}
@@ -108,12 +112,12 @@ For regression include other variables not sure how to plot with multiple variab
 CIN_revenue_dat_month = data.frame(date =  CIN_revenue_dat$Year.Month, revenue = CIN_revenue_dat$Payments, number_pay = CIN_revenue_dat$Number.of.Payments.Received)
 CIN_revenue_dat_month$revenue = as.numeric(CIN_revenue_dat_month$revenue)
 
-
 CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
 head(CIN_revenue_dat_month)
 colnames(CIN_revenue_dat_month)[1:3] = c("date", "revenue", "number_pay")
 
-CIN_revenue_dat_month$revenue = CIN_revenue_dat_month$revenue 
+### Divide by 1,000,000 for graphs
+CIN_revenue_dat_month$revenue = round((CIN_revenue_dat_month$revenue / 1000000),3) 
 typeof(CIN_revenue_dat_month$date)
 
 ### Create a time variable that is the trend
@@ -124,10 +128,6 @@ CIN_revenue_dat_month$quarter = quarter(CIN_revenue_dat_month$date)
 
 CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
-
-### Get rid of June and July
-
-CIN_revenue_dat_month_ts
 ```
 
 
@@ -150,6 +150,8 @@ Develop univariate model, because you do not have to select what values of other
 
 Maybe phi is the average correlation between all time points and the difference according p (all t minus 1's).  For example, p = 1 is the all t minus 1's between. Phi is the average correlation between t and minus 1's.
 
+Testing versus training: One shot testing with small amounts of data: https://otexts.com/fpp2/forecasting-on-training-and-test-sets.html
+
 
 ```{r}
 CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
@@ -164,67 +166,20 @@ ggPacf(residuals(arima_model))
 Box.test(residuals(arima_model), type = "Ljung-Box")
 summary(ur.kpss(residuals(arima_model)))
 
+### Training versus testing
+CIN_revenue_dat_unit_train = CIN_revenue_dat_unit[1:17]
+CIN_revenue_dat_unit_test = CIN_revenue_dat_unit[18:23]
+#### Model for both
+arima_model_train =  auto.arima(CIN_revenue_dat_unit_train, seasonal = FALSE)
+accuracy(arima_model_train)
+arima_model_test = Arima(CIN_revenue_dat_unit_test, model = arima_model_train)
+accuracy(arima_model_test)
+
 ### Forcast model
 forecast_model = forecast(arima_model)
 summary(forecast_model)
 autoplot(forecast_model)
 ```
-Prove differening
-```{r}
-CIN_revenue_dat_month_ts[,2]
-32361367 - 31926558
-diff(CIN_revenue_dat_month_ts[,2], lag = 2)
-```
-Use the model not just to predict, but to predict based on different scenerios
-This would be where we use the test data set, which is five percent so 5 values.
-
-Use third quatile of the number of payments to see what would have happen if we can increase the number 
-of payments.
-```{r}
-summary(CIN_revenue_dat_month_ts[,3:5])
-describe(CIN_revenue_dat_month_ts[,3:5])
-
-new_dat = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rep(5680, 12), time = 24:(24+11))
-new_dat
-
-number_pay = rep(5680, 12)
-
-```
-
-Try autoregressive model with predictors
-```{r}
-CIN_revenue_dat_month_ts[,2]
-CIN_revenue_dat_month_ts[,5]
-CIN_revenue_dat_month_ts
-
-arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], seasonal = FALSE)
-summary(arima_model_dy)
-summary(arima_model)
-#ggAcf()
-forecast_model_dy = forecast(arima_model_dy, xreg = number_pay)
-summary(forecast_model_dy)
-autoplot(forecast_model_dy)
-forecast_model_dy
-
-```
-Example from book
-```{r}
-### Try example from book
-head(elecdaily)
-
-xreg <- cbind(MaxTemp = elecdaily[, "Temperature"],MaxTempSq = elecdaily[, "Temperature"]^2,Workday = elecdaily[, "WorkDay"])
-
-new_dat_test = cbind(MaxTemp=rep(26,14), MaxTempSq=rep(26^2,14),Workday=c(0,1,0,0,1,1,1,1,1,0,0,1,1,1))
-
-
-test_auto = auto.arima(elecdaily[,1], xreg = xreg)
-checkresiduals(test_auto)
-
-fcast <- forecast(test_auto, xreg = new_dat_test)
-summary(fcast)
-autoplot(fcast) + ylab("Electricity demand (GW)")
-```
-
 
 Try neural network feed forward model
 Inputs: Values for the covariates in the model
@@ -241,69 +196,73 @@ I think NNAR(1,1,2) mean one non-lagged valuem and maybe 1 seasonal lagged value
 2-2-1 mean two inputs (one non-seasonal lag and the original data), and two nodes, 9 weights means 9 regression coeffients going to the hidden nodes
 Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
+CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
+head(CIN_revenue_dat_unit)
+
 nn_auto = nnetar(CIN_revenue_dat_unit, lambda = "auto")
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
-ggAcf(residuals(nn_auto))
-ggPacf(residuals(nn_auto))
-Box.test(residuals(nn_auto), type = "Ljung-Box")
-summary(ur.kpss(residuals(nn_auto)))
+residuals_nn_auto = data.frame(residuals(nn_auto))
+residuals_nn_auto = apply(residuals_nn_auto, 1, mean)
+residuals_nn_auto = data.frame(residuals_nn_auto)
+ggAcf(residuals(residuals_nn_auto))
+ggPacf(residuals(residuals_nn_auto))
+Box.test(residuals_nn_auto, type = "Ljung-Box")
+summary(ur.kpss(residuals_nn_auto$residuals_nn_auto))
+
+#### Compare training versus testing
+#### Model for both
+nn_model_train =  nnetar(CIN_revenue_dat_unit_train)
+accuracy(nn_model_train)
+nn_model_test = nnetar(CIN_revenue_dat_unit_test, model = nn_model_train)
+accuracy(nn_model_test)
 
 ### compare accuracy
 accuracy(nn_auto)
 accuracy(arima_model)
-dm.test(residuals(nn_auto), residuals(arima_model))
+dm.test(residuals_nn_auto$residuals_nn_auto, residuals(arima_model))
 
 
 ### Forecast
 forecast_nn_auto = forecast(nn_auto, PI = TRUE)
 forecast_nn_auto
-autoplot(forecast_nn_auto)
+autoplot(forecast_nn_auto)+
+  labs(title = "Forecasts for CIN Bloomington June 2019 to June 2021", y = "$ Millions in revenue per month", x = "Time")
 
 ```
-Try and plot nnetar
-Doesn't seem to work.
+Try dynamic simulations
 ```{r}
-library(devtools)
-source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
+library(dynsim)
+data(grunfeld, package = "dynsim")
+grunfeld
+library(DataCombine)
+grunfeld <- slide(grunfeld, Var = "invest", GroupVar = "company", TimeVar = "year", NewVar = "InvestLag")
+grunfeld
 
-plot.nnet(nn_auto)
+CIN_revenue_dat_month_dy = slide(CIN_revenue_dat_month, Var = "revenue")
+colnames(CIN_revenue_dat_month_dy)[6] = c("revuneMinus1")
+model_1 = lm(revenue ~ revuneMinus1 + number_pay, data = CIN_revenue_dat_month_dy)
+summary(model_1)
 
-nn_auto
+Scen1 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .95),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
 
-```
-Try neural network with multiple variables
-```{r}
-nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3:5], lambda = "auto")
-accuracy(nn_auto_dy)
-accuracy(nn_auto)
+Scen2 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .5),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
 
-results_test = list()
-n = 1:3
-for(i in 1:length(n)){
-results_test[[i]] = dm.test(residuals(nn_auto_dy), residuals(nn_auto), h = n[[i]])
-}
-results_test
+Scen3 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .05),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
 
-```
-Trying predicting them using new data
-```{r}
+ScenComb <- list(Scen1, Scen2, Scen3)
 
-summary(CIN_revenue_dat_month_ts[,3:5])
-describe(CIN_revenue_dat_month_ts[,3:5])
+Sim1 <- dynsim(obj = model_1, ldv = "revuneMinus1", scen = ScenComb, n = 12)
 
-new_dat = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rnorm(n = 12, mean = 56010, sd = 12305.44), time = 24:(24+11))
-
-new_dat_1 = data.frame(quarter = c(2,2, rep(3,4), rep(4,4), rep(1,2)), number_pay = rnorm(n = 12, mean = 900000, sd = 12305.44), time = 24:24+11)
-
-
-forecast_model_nn_dy = forecast(nn_auto_dy, xreg = new_dat, PI = TRUE)
-summary(forecast_model_nn_dy)
-autoplot(forecast_model_nn_dy)
+dynsimGG(Sim1) +
+  labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
+  theme_grey(base_size = 12)
 
 ```
-Need to go back and use test and validation and figure that out.
+##################################################################################
+Extra
+##################################################################################
 Try CARET model
 Not enough data
 ```{r}
@@ -326,6 +285,78 @@ gbmFit1 <- train(revenue ~ ., data = training,
 
 ```
 
+Try and plot nnetar
+Doesn't seem to work.
+```{r}
+library(devtools)
+source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
+
+plot.nnet(nn_auto)
+
+nn_auto
+
+```
+
+Trying predicting them using new data
+```{r}
+summary(CIN_revenue_dat_month_ts[,3:5])
+describe(CIN_revenue_dat_month_ts[,3:5])
+number_pay = seq(from= 5680, to= (5680+1200), by = 100)
+number_pay_1 = rep(5680, 12)
+
+forecast_model_nn_dy = forecast(nn_auto_dy, xreg = number_pay, PI = TRUE)
+summary(forecast_model_nn_dy)
+autoplot(forecast_model_nn_dy)
 
 
 
+forecast_model_nn_dy_1 = forecast(nn_auto_dy, xreg = number_pay_1, PI = TRUE)
+summary(forecast_model_nn_dy_1)
+autoplot(forecast_model_nn_dy_1)
+
+```
+
+Try neural network with multiple variables
+```{r}
+nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], lambda = "auto")
+accuracy(nn_auto_dy)
+accuracy(nn_auto)
+
+results_test = list()
+n = 1:3
+for(i in 1:length(n)){
+results_test[[i]] = dm.test(residuals(nn_auto_dy), residuals(nn_auto), h = n[[i]])
+}
+results_test
+```
+Prove differening
+```{r}
+CIN_revenue_dat_month_ts[,2]
+32361367 - 31926558
+diff(CIN_revenue_dat_month_ts[,2], lag = 2)
+```
+Use the model not just to predict, but to predict based on different scenerios
+This would be where we use the test data set, which is five percent so 5 values.
+
+Need to keep everything constant, but one value.  
+```{r}
+summary(CIN_revenue_dat_month_ts[,3:5])
+describe(CIN_revenue_dat_month_ts[,3:5])
+number_pay = seq(from= 5680, to= (5680+1200), by = 100)
+```
+
+Try autoregressive model with predictors
+```{r}
+CIN_revenue_dat_month_ts[,2]
+CIN_revenue_dat_month_ts[,5]
+CIN_revenue_dat_month_ts
+
+arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], seasonal = FALSE)
+summary(arima_model_dy)
+summary(arima_model)
+#ggAcf()
+forecast_model_dy = forecast(arima_model_dy, xreg = number_pay)
+summary(forecast_model_dy)
+autoplot(forecast_model_dy)
+forecast_model_dy
+```
