@@ -11,6 +11,7 @@ Review revenue.  Get date in mdy format.  Need to change Jul to correct number a
 ## Revenue data
 setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/SustainWorkshop/RevenueAnalysis")
 CIN_revenue = read.csv("CH17-37_20190731_123328.csv", header = TRUE)
+
 head(CIN_revenue)
 library(lubridate)
 library(forecast)
@@ -29,18 +30,26 @@ CIN_revenue_dat$Year.Month = paste("1-",CIN_revenue_dat$Year.Month, sep = "")
 head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = dmy(CIN_revenue_dat$Year.Month)
 head(CIN_revenue_dat)
+
+CIN_revenue_dat$location = NULL
+###
+
 #### Need to remove the $ we are removing the .00 so divide by 100 to get original payment
 #### Then divide by 100 to get estimates in the hundreds of thousands
 CIN_revenue_dat$Payments = gsub("\\D", "", CIN_revenue_dat$Payments)
 CIN_revenue_dat$Payments = as.numeric(CIN_revenue_dat$Payments) 
 CIN_revenue_dat$Payments = CIN_revenue_dat$Payments / 100
-## Divide by 1,00,000 to help formatting
-CIN_revenue_dat$Payments = CIN_revenue_dat$Payments 
-head(CIN_revenue_dat)
+### Get rid of anything before May
+CIN_revenue_dat = subset(CIN_revenue_dat, Year.Month < "2019-06-01")
+
+### Get rid of non-recoverable
+CIN_revenue_dat = subset(CIN_revenue_dat, Financial.Class.Value != "Non-Recoverable") 
 ```
 Now aggregate data by month
 ```{r}
 head(CIN_revenue_dat)
+library(prettyR)
+describe.factor(CIN_revenue_dat$Year.Month)
 CIN_revenue_dat_month = data.frame(date =  CIN_revenue_dat$Year.Month, revenue = CIN_revenue_dat$Payments)
 CIN_revenue_dat_month$revenue = as.numeric(CIN_revenue_dat_month$revenue)
 head(CIN_revenue_dat_month)
@@ -48,17 +57,15 @@ head(CIN_revenue_dat_month)
 CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
 head(CIN_revenue_dat_month)
 dim(CIN_revenue_dat_month)
-CIN_revenue_dat_month$revenue = round((CIN_revenue_dat_month$revenue / 1000000),3)
-CIN_revenue_dat_month$revenue
+CIN_revenue_dat_month$revenue = round((CIN_revenue_dat_month$revenue))
+CIN_revenue_dat_month
 ```
 Regularly spaced time and get rid of June and July those numbers are not ready yet
 ```{r}
-### Get rid of June and July
-CIN_revenue_dat_month[24:25,] = NA
-CIN_revenue_dat_month = na.omit(CIN_revenue_dat_month)
 ## Get rid of date
 CIN_revenue_dat_month$date = NULL
 dim(CIN_revenue_dat_month)
+head(CIN_revenue_dat_month)
 CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
 CIN_revenue_dat_month_ts
@@ -116,16 +123,13 @@ CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
 head(CIN_revenue_dat_month)
 colnames(CIN_revenue_dat_month)[1:3] = c("date", "revenue", "number_pay")
 
-### Divide by 1,000,000 for graphs
-CIN_revenue_dat_month$revenue = round((CIN_revenue_dat_month$revenue / 1000000),3) 
 typeof(CIN_revenue_dat_month$date)
-
+CIN_revenue_dat_month$date
 ### Create a time variable that is the trend
 CIN_revenue_dat_month$time = 1:dim(CIN_revenue_dat_month)[1]
-
 ### ### Create a quarter variable
 CIN_revenue_dat_month$quarter = quarter(CIN_revenue_dat_month$date)
-
+CIN_revenue_dat_month
 CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
 ```
@@ -196,10 +200,10 @@ I think NNAR(1,1,2) mean one non-lagged valuem and maybe 1 seasonal lagged value
 2-2-1 mean two inputs (one non-seasonal lag and the original data), and two nodes, 9 weights means 9 regression coeffients going to the hidden nodes
 Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
+
 CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
 head(CIN_revenue_dat_unit)
-
-nn_auto = nnetar(CIN_revenue_dat_unit, lambda = "auto")
+nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
@@ -228,135 +232,216 @@ dm.test(residuals_nn_auto$residuals_nn_auto, residuals(arima_model))
 forecast_nn_auto = forecast(nn_auto, PI = TRUE)
 forecast_nn_auto
 autoplot(forecast_nn_auto)+
-  labs(title = "Forecasts for CIN Bloomington June 2019 to June 2021", y = "$ Millions in revenue per month", x = "Time")
+  labs(title = "Forecasts for CIN Bloomington July 2019 to May 2021", y = "$ Millions in revenue per month", x = "Time")
 
+```
+Try to get a longitduinal data set with the number of payments per class
+Average revenue per agency per month
+```{r}
+head(CIN_revenue_dat)
+describe.factor(CIN_revenue_dat$Financial.Class.Value)
+
+library(prettyR)
+describe.factor(CIN_revenue_dat$Year.Month)
+
+CIN_revenue_sim = data.frame(date =  CIN_revenue_dat$Year.Month, revenue = CIN_revenue_dat$Payments, class = CIN_revenue_dat$Financial.Class.Value)
+CIN_revenue_sim$revenue = as.numeric(CIN_revenue_sim$revenue)
+head(CIN_revenue_sim)
+CIN_revenue_sim
+library(psych)
+dummy_class = dummy.code(CIN_revenue_sim$class)
+dummy_class = data.frame(dummy_class)
+apply(dummy_class,2, sum)
+### Need to combine into other category Voc Rehab and Client Assistance may delete later
+dummy_class$other = dummy_class$Client.Assistance+dummy_class$Voc.Rehab
+dummy_class$Voc.Rehab = NULL
+dummy_class$Client.Assistance = NULL
+describe.factor(dummy_class$other)
+CIN_revenue_sim$class = NULL
+CIN_revenue_sim = data.frame(CIN_revenue_sim, dummy_class)
+head(CIN_revenue_sim)
+
+CIN_revenue_sim = aggregate(.~date, data = CIN_revenue_sim, sum)
+head(CIN_revenue_sim)
+### Drop other, because there is not enough
+CIN_revenue_sim$other = NULL
+CIN_revenue_sim$Non.Recoverable = NULL
+test_dat = list()
+CIN_revenue_sim_vars = CIN_revenue_sim[,3:12]
+CIN_revenue_sim_vars$Agency
+CIN_revenue_sim_vars = CIN_revenue_sim$revenue / CIN_revenue_sim_vars 
+
+CIN_revenue_sim[,3:12] = CIN_revenue_sim_vars
+head(CIN_revenue_sim)
+CIN_revenue_sim$Agency
 ```
 Try dynamic simulations
 ```{r}
 library(dynsim)
-data(grunfeld, package = "dynsim")
-grunfeld
-library(DataCombine)
-grunfeld <- slide(grunfeld, Var = "invest", GroupVar = "company", TimeVar = "year", NewVar = "InvestLag")
-grunfeld
+CIN_revenue_dat_month_dy = slide(CIN_revenue_sim, Var = "revenue")
+head(CIN_revenue_dat_month_dy)
+colnames(CIN_revenue_dat_month_dy)[13] = c("revuneMinus1")
+CIN_revenue_dat_month_dy$Agency  = ifelse(CIN_revenue_dat_month_dy$Agency == "Inf", 0, CIN_revenue_dat_month_dy$Agency)
+head(CIN_revenue_dat_month_dy)
 
-CIN_revenue_dat_month_dy = slide(CIN_revenue_dat_month, Var = "revenue")
-colnames(CIN_revenue_dat_month_dy)[6] = c("revuneMinus1")
-model_1 = lm(revenue ~ revuneMinus1 + number_pay, data = CIN_revenue_dat_month_dy)
+
+model_9 = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP + MRO, data = CIN_revenue_dat_month_dy)
+summary(model_9)
+checkresiduals(model_9)
+vif(model_9)
+library(lmtest)
+bptest(model_9)
+
+
+com_1 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .75),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+
+com_2 <- data.frame(Commercial =  quantile(CIN_revenue_dat_month_dy$Commercial, .50),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+
+com_3 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .25),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+
+
+medhip_1 <- data.frame(Medicaid_HIP = quantile(CIN_revenue_dat_month_dy$Medicaid_HIP, .75),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Commercial = mean(CIN_revenue_dat_month_dy$Commercial), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+
+medhip_2 <- data.frame(Commercial =  quantile(CIN_revenue_dat_month_dy$Commercial, .50),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+
+medhip_3 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .25),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+
+
+plot_com =  dynsimGG(sim_com) +
+  labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
+  theme_grey(base_size = 12)
+
+plot_medhip = dynsimGG(sim_medhip) +
+  labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
+  theme_grey(base_size = 12)
+
+library(ggpubr)
+ggarrange(plot_com, plot_medhip, ncol = 2)
+
+```
+################
+Model building for dynsim
+```{r}
+model_1 = lm(revenue ~Agency +Commercial, data = CIN_revenue_dat_month_dy)
 summary(model_1)
+checkresiduals(model_1)
 
-Scen1 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .95),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
+CIN_revenue_dat_month_dy$DCS
+model_2 = lm(revenue ~ revuneMinus1+ Commercial +DCS, data = CIN_revenue_dat_month_dy)
+summary(model_2)
+checkresiduals(model_2)
 
-Scen2 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .5),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
 
-Scen3 <- data.frame(number_pay = quantile(CIN_revenue_dat_month_dy$number_pay, .05),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE))
+CIN_revenue_dat_month_dy$EAP
+model_3 = lm(revenue ~revuneMinus1+Commercial +DCS + EAP, data = CIN_revenue_dat_month_dy)
+summary(model_3)
+checkresiduals(model_3)
 
-ScenComb <- list(Scen1, Scen2, Scen3)
 
-Sim1 <- dynsim(obj = model_1, ldv = "revuneMinus1", scen = ScenComb, n = 12)
+CIN_revenue_dat_month_dy$Grant
+model_4 = lm(revenue ~revuneMinus1+ Commercial +DCS + Grant, data = CIN_revenue_dat_month_dy)
+summary(model_4)
+checkresiduals(model_4)
 
-dynsimGG(Sim1) +
+
+CIN_revenue_dat_month_dy$HIP
+model_5 = lm(revenue ~revuneMinus1+ Commercial +DCS + HIP, data = CIN_revenue_dat_month_dy)
+summary(model_5)
+checkresiduals(model_5)
+
+
+CIN_revenue_dat_month_dy$Medicaid
+model_6 = lm(revenue ~revuneMinus1+Commercial +DCS + HIP + Medicaid , data = CIN_revenue_dat_month_dy)
+summary(model_6)
+checkresiduals(model_6)
+library(car)
+vif(model_6)
+### Try combining 
+CIN_revenue_dat_month_dy$Medicaid
+model_6a = lm(revenue ~revuneMinus1+Commercial +DCS  + Medicaid , data = CIN_revenue_dat_month_dy)
+summary(model_6a)
+checkresiduals(model_6a)
+CIN_revenue_dat_month_dy$Medicaid_HIP = (CIN_revenue_dat_month_dy$Medicaid+CIN_revenue_dat_month_dy$HIP)/2
+
+model_6b = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP, data = CIN_revenue_dat_month_dy)
+summary(model_6b)
+checkresiduals(model_6a)
+
+CIN_revenue_dat_month_dy$Medicare.B
+model_7 = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP + Medicare.B, data = CIN_revenue_dat_month_dy)
+summary(model_7)
+checkresiduals(model_7)
+
+CIN_revenue_dat_month_dy$MRO
+model_8 = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP + MRO, data = CIN_revenue_dat_month_dy)
+summary(model_8)
+checkresiduals(model_8)
+
+CIN_revenue_dat_month_dy$Self.Pay
+model_9 = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP + MRO +Self.Pay, data = CIN_revenue_dat_month_dy)
+summary(model_9)
+checkresiduals(model_9)
+```
+
+
+
+##############################
+Try nnetear doesn't work when series is two times as long as freq for some odd reason
+```{r}
+#### Clean the June data
+head(CIN_revenue_dat)
+dim(CIN_revenue_dat)
+dim(CIN_revenue_8_30)
+CIN_revenue_8_30 = read.csv("CH16-37_20190830_123423.csv", header = TRUE)
+CIN_revenue_8_30
+CIN_revenue_8_30$Year.Month = str_replace_all(CIN_revenue_8_30$Year.Month, c("Jan" = "1", "Feb"="2", "Mar"="3", "Apr"="4", "May"="5", "Jun"="6", "Jul"="7", "Aug"="8", "Sep" = "9", "Oct"="10", "Nov"="11", "Dec"="12"))
+head(CIN_revenue_8_30)
+CIN_revenue_8_30$Year.Month = paste("1-",CIN_revenue_8_30$Year.Month, sep = "")
+head(CIN_revenue_8_30)
+CIN_revenue_8_30$Year.Month = dmy(CIN_revenue_8_30$Year.Month)
+describe.factor(CIN_revenue_8_30$Year.Month)
+
+#### Get rid of beyond June
+CIN_revenue_dat = subset(CIN_revenue_dat, Year.Month < "2019-06-01")
+describe.factor(CIN_revenue_dat$Year.Month)
+### Only grab June 
+CIN_revenue_8_30 = subset(CIN_revenue_8_30, Year.Month == "2019-06-01")
+describe.factor(CIN_revenue_8_30$Year.Month)
+### Combine the data sets
+CIN_revenue_dat = rbind(CIN_revenue_dat, CIN_revenue_8_30)
+```
+Dymsim can only do stable increases over time not dynamic increases over time
+```{r}
+test_quant = list()
+quants = seq(from = .5, to = .5+(.02*11), by =.02)
+#Did not work
+#quants = as.list(quants)
+#quants
+## Not the function tried with rnorm only the last value worked
+for(i in 1:length(quants)){
+  test_quant[[i]] = quantile(CIN_revenue_dat_month_dy$Medicaid_HIP, quants[[i]])
+}
+test_quant = data.frame(test_quant)
+test_quant =  t(test_quant)
+colnames(test_quant) = "quants"
+test_quant = data.frame(test_quant)
+rownames(test_quant) = c() 
+test_quant
+model_9
+
+medhip_2_increase = data.frame(Medicaid_HIP = test_quant$quants,revuneMinus1 =  rep(mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), 12), DCS = rep(mean(CIN_revenue_dat_month_dy$DCS), 12), Commercial =rep(mean(CIN_revenue_dat_month_dy$Commercial), 12), MRO = rep(mean(CIN_revenue_dat_month_dy$MRO)), 12)
+medhip_2_increase$X12 = NULL
+
+scen_com <- list(com_1, com_2, com_3)
+scen_medhip = list(medhip_1, medhip_2, medhip_3)
+sim_com <- dynsim(obj = model_9, ldv = "revuneMinus1", scen = scen_com, n = 12)
+sim_medhip <- dynsim(obj = model_9, ldv = "revuneMinus1", scen = scen_medhip, n = 12)
+
+### Test medhip 2% increase 
+sim_medhip_2_increase = dynsim(obj = model_9, ldv = "revuneMinus1", scen = medhip_2_increase, n = 12)
+dynsimGG(sim_medhip_2_increase) +
   labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
   theme_grey(base_size = 12)
 
 ```
-##################################################################################
-Extra
-##################################################################################
-Try CARET model
-Not enough data
-```{r}
-library(caret)
 
-inTrain = createDataPartition(y = CIN_revenue_dat_month$time, p = .75, list = FALSE)
-training = CIN_revenue_dat_month[inTrain,]
-testing = CIN_revenue_dat_month[-inTrain,] 
-
-fitControl <- trainControl(
-  method = "repeatedcv",
-  number = 1,
-  repeats = 10)
-
-gbmFit1 <- train(revenue ~ ., data = training, 
-                 method = "gbm", 
-                 trControl = fitControl,
-                 verbose = FALSE)
-
-
-```
-
-Try and plot nnetar
-Doesn't seem to work.
-```{r}
-library(devtools)
-source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
-
-plot.nnet(nn_auto)
-
-nn_auto
-
-```
-
-Trying predicting them using new data
-```{r}
-summary(CIN_revenue_dat_month_ts[,3:5])
-describe(CIN_revenue_dat_month_ts[,3:5])
-number_pay = seq(from= 5680, to= (5680+1200), by = 100)
-number_pay_1 = rep(5680, 12)
-
-forecast_model_nn_dy = forecast(nn_auto_dy, xreg = number_pay, PI = TRUE)
-summary(forecast_model_nn_dy)
-autoplot(forecast_model_nn_dy)
-
-
-
-forecast_model_nn_dy_1 = forecast(nn_auto_dy, xreg = number_pay_1, PI = TRUE)
-summary(forecast_model_nn_dy_1)
-autoplot(forecast_model_nn_dy_1)
-
-```
-
-Try neural network with multiple variables
-```{r}
-nn_auto_dy = nnetar(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], lambda = "auto")
-accuracy(nn_auto_dy)
-accuracy(nn_auto)
-
-results_test = list()
-n = 1:3
-for(i in 1:length(n)){
-results_test[[i]] = dm.test(residuals(nn_auto_dy), residuals(nn_auto), h = n[[i]])
-}
-results_test
-```
-Prove differening
-```{r}
-CIN_revenue_dat_month_ts[,2]
-32361367 - 31926558
-diff(CIN_revenue_dat_month_ts[,2], lag = 2)
-```
-Use the model not just to predict, but to predict based on different scenerios
-This would be where we use the test data set, which is five percent so 5 values.
-
-Need to keep everything constant, but one value.  
-```{r}
-summary(CIN_revenue_dat_month_ts[,3:5])
-describe(CIN_revenue_dat_month_ts[,3:5])
-number_pay = seq(from= 5680, to= (5680+1200), by = 100)
-```
-
-Try autoregressive model with predictors
-```{r}
-CIN_revenue_dat_month_ts[,2]
-CIN_revenue_dat_month_ts[,5]
-CIN_revenue_dat_month_ts
-
-arima_model_dy =  auto.arima(CIN_revenue_dat_month_ts[,2], xreg = CIN_revenue_dat_month_ts[,3], seasonal = FALSE)
-summary(arima_model_dy)
-summary(arima_model)
-#ggAcf()
-forecast_model_dy = forecast(arima_model_dy, xreg = number_pay)
-summary(forecast_model_dy)
-autoplot(forecast_model_dy)
-forecast_model_dy
-```
