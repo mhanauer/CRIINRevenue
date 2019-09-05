@@ -43,7 +43,11 @@ CIN_revenue_dat$Payments = CIN_revenue_dat$Payments / 100
 CIN_revenue_dat = subset(CIN_revenue_dat, Year.Month < "2019-06-01")
 
 ### Get rid of non-recoverable
-CIN_revenue_dat = subset(CIN_revenue_dat, Financial.Class.Value != "Non-Recoverable") 
+CIN_revenue_dat = subset(CIN_revenue_dat, Financial.Class.Value != "Non-Recoverable")
+
+#### Get rid of any revenue that is zero
+CIN_revenue_dat = subset(CIN_revenue_dat, Payments > 0)
+CIN_revenue_dat
 ```
 Now aggregate data by month
 ```{r}
@@ -75,7 +79,7 @@ Trend: long term increase or increase; Season = short term predictable with some
 ```{r}
 ggseasonplot(CIN_revenue_dat_month_ts) +
   ylab("$ Millions")+
-  ggtitle("Revenue per year")
+  ggtitle("Figure 1: Revenue per year")
 
 ## Lag plot 
 #gglagplot(CIN_revenue_dat_month)
@@ -172,6 +176,7 @@ summary(ur.kpss(residuals(arima_model)))
 
 ### Training versus testing
 CIN_revenue_dat_unit_train = CIN_revenue_dat_unit[1:17]
+1-(17/23)
 CIN_revenue_dat_unit_test = CIN_revenue_dat_unit[18:23]
 #### Model for both
 arima_model_train =  auto.arima(CIN_revenue_dat_unit_train, seasonal = FALSE)
@@ -196,7 +201,7 @@ Little p = number of lags to include
 Big p = number of lags for season series
 k = number of nodes or functions in the one hidden layer
 
-I think NNAR(1,1,2) mean one non-lagged valuem and maybe 1 seasonal lagged value, and two nodes
+I think NNAR(1,1,2) mean one non-lagged value and maybe 1 seasonal lagged value, and two nodes
 2-2-1 mean two inputs (one non-seasonal lag and the original data), and two nodes, 9 weights means 9 regression coeffients going to the hidden nodes
 Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
@@ -207,14 +212,16 @@ nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
-residuals_nn_auto = data.frame(residuals(nn_auto))
+residuals_nn_auto = data.frame(resid_nn_auto= residuals(nn_auto))
 residuals_nn_auto = apply(residuals_nn_auto, 1, mean)
 residuals_nn_auto = data.frame(residuals_nn_auto)
 ggAcf(residuals(residuals_nn_auto))
 ggPacf(residuals(residuals_nn_auto))
 Box.test(residuals_nn_auto, type = "Ljung-Box")
 summary(ur.kpss(residuals_nn_auto$residuals_nn_auto))
-
+library(lmtest)
+hist(round(residuals_nn_auto),3)
+accuracy(nn_auto)
 #### Compare training versus testing
 #### Model for both
 nn_model_train =  nnetar(CIN_revenue_dat_unit_train)
@@ -227,12 +234,11 @@ accuracy(nn_auto)
 accuracy(arima_model)
 dm.test(residuals_nn_auto$residuals_nn_auto, residuals(arima_model))
 
-
 ### Forecast
 forecast_nn_auto = forecast(nn_auto, PI = TRUE)
 forecast_nn_auto
 autoplot(forecast_nn_auto)+
-  labs(title = "Forecasts for CIN Bloomington July 2019 to May 2021", y = "$ Millions in revenue per month", x = "Time")
+  labs(title = "Figure 2: Forecasts for CIN Bloomington July 2019 to May 2021", y = "$ Millions in revenue per month", x = "Time")
 
 ```
 Try to get a longitduinal data set with the number of payments per class
@@ -253,41 +259,43 @@ dummy_class = dummy.code(CIN_revenue_sim$class)
 dummy_class = data.frame(dummy_class)
 apply(dummy_class,2, sum)
 ### Need to combine into other category Voc Rehab and Client Assistance may delete later
-dummy_class$other = dummy_class$Client.Assistance+dummy_class$Voc.Rehab
 dummy_class$Voc.Rehab = NULL
 dummy_class$Client.Assistance = NULL
-describe.factor(dummy_class$other)
+CIN_revenue_sim$Non.Recoverable = NULL
 CIN_revenue_sim$class = NULL
 CIN_revenue_sim = data.frame(CIN_revenue_sim, dummy_class)
 head(CIN_revenue_sim)
+### Combine Medicaid and HIP for later model
+CIN_revenue_sim$Medicaid_HIP = (CIN_revenue_sim$Medicaid+ CIN_revenue_sim$HIP)/2
 
 CIN_revenue_sim = aggregate(.~date, data = CIN_revenue_sim, sum)
-head(CIN_revenue_sim)
-### Drop other, because there is not enough
-CIN_revenue_sim$other = NULL
 CIN_revenue_sim$Non.Recoverable = NULL
-test_dat = list()
-CIN_revenue_sim_vars = CIN_revenue_sim[,3:12]
-CIN_revenue_sim_vars$Agency
-CIN_revenue_sim_vars = CIN_revenue_sim$revenue / CIN_revenue_sim_vars 
-
-CIN_revenue_sim[,3:12] = CIN_revenue_sim_vars
 head(CIN_revenue_sim)
-CIN_revenue_sim$Agency
 ```
+Get descriptives
+```{r}
+round(apply(CIN_revenue_sim[2:12], 2, mean),0)
+round(apply(CIN_revenue_desc[2:12], 2, sd),0)
+
+
+```
+
+
 Try dynamic simulations
 ```{r}
 library(dynsim)
+library(DataCombine)
 CIN_revenue_dat_month_dy = slide(CIN_revenue_sim, Var = "revenue")
 head(CIN_revenue_dat_month_dy)
-colnames(CIN_revenue_dat_month_dy)[13] = c("revuneMinus1")
+colnames(CIN_revenue_dat_month_dy)[14] = c("revuneMinus1")
 CIN_revenue_dat_month_dy$Agency  = ifelse(CIN_revenue_dat_month_dy$Agency == "Inf", 0, CIN_revenue_dat_month_dy$Agency)
 head(CIN_revenue_dat_month_dy)
 
 
-model_9 = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP + MRO, data = CIN_revenue_dat_month_dy)
+model_9 = lm(revenue ~revuneMinus1+Commercial  +Medicaid_HIP, data = CIN_revenue_dat_month_dy)
 summary(model_9)
 checkresiduals(model_9)
+library(car)
 vif(model_9)
 library(lmtest)
 bptest(model_9)
@@ -307,17 +315,24 @@ medhip_2 <- data.frame(Commercial =  quantile(CIN_revenue_dat_month_dy$Commercia
 medhip_3 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .25),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
 
 
-plot_com =  dynsimGG(sim_com) +
-  labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
-  theme_grey(base_size = 12)
+plot_com =  dynsimGG(sim_com, leg.labels = c("25%", "15%", "5%")) +
+  labs(title = "Figure 3: Increase in Commercial Payments June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
+  theme(plot.title = element_text(size= 12))+
+  theme(axis.title.x = element_text(size= 12))+
+  theme(axis.title.y = element_text(size= 12))
+plot_com
 
-plot_medhip = dynsimGG(sim_medhip) +
-  labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
-  theme_grey(base_size = 12)
+plot_medhip = dynsimGG(sim_medhip, leg.labels = c("25%", "15%", "5%")) +
+  labs(title = "Increase in Medicaid and HIP Payments June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months", size = 12)+
+  theme(plot.title = element_text(size= 12))+
+  theme(axis.title.x = element_text(size= 12))+
+  theme(axis.title.y = element_text(size= 12))
+plot_medhip
 
 library(ggpubr)
-ggarrange(plot_com, plot_medhip, ncol = 2)
-
+#ggarrange(plot_com, plot_medhip, ncol = 2)
+6.1-4.7
+5.5-4.7
 ```
 ################
 Model building for dynsim
