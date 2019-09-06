@@ -47,7 +47,6 @@ CIN_revenue_dat = subset(CIN_revenue_dat, Financial.Class.Value != "Non-Recovera
 
 #### Get rid of any revenue that is zero
 CIN_revenue_dat = subset(CIN_revenue_dat, Payments > 0)
-CIN_revenue_dat
 ```
 Now aggregate data by month
 ```{r}
@@ -118,29 +117,6 @@ summary(ur.kpss(CIN_revenue_dat_month_ts))
 ## If you want to adjust for the days of the year
 #CIN_revenue_dat_month_ts / monthdays(CIN_revenue_dat_month_ts)
 ```
-For regression include other variables not sure how to plot with multiple variables in time series 
-```{r}
-CIN_revenue_dat_month = data.frame(date =  CIN_revenue_dat$Year.Month, revenue = CIN_revenue_dat$Payments, number_pay = CIN_revenue_dat$Number.of.Payments.Received)
-CIN_revenue_dat_month$revenue = as.numeric(CIN_revenue_dat_month$revenue)
-
-CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
-head(CIN_revenue_dat_month)
-colnames(CIN_revenue_dat_month)[1:3] = c("date", "revenue", "number_pay")
-
-typeof(CIN_revenue_dat_month$date)
-CIN_revenue_dat_month$date
-### Create a time variable that is the trend
-CIN_revenue_dat_month$time = 1:dim(CIN_revenue_dat_month)[1]
-### ### Create a quarter variable
-CIN_revenue_dat_month$quarter = quarter(CIN_revenue_dat_month$date)
-CIN_revenue_dat_month
-CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
-head(CIN_revenue_dat_month_ts)
-```
-
-
-
-
 Autoregressive model is like a lagged version of a linear model with the previous time point values as predictors.  So the value at time point 2, 3,..n predicting time point one?
 P is the autoregressive parameter, which is the number of time points we go back to so we include each time point minus the previous as an average parameter if AR2 then each time point and first and second difference.
 
@@ -232,13 +208,14 @@ accuracy(nn_model_test)
 ### compare accuracy
 accuracy(nn_auto)
 accuracy(arima_model)
-dm.test(residuals_nn_auto$residuals_nn_auto, residuals(arima_model))
+#dm.test(residuals_nn_auto$residuals_nn_auto, residuals(arima_model))
 
 ### Forecast
-forecast_nn_auto = forecast(nn_auto, PI = TRUE)
+forecast_nn_auto = forecast(nn_auto, PI = TRUE, h = 12)
 forecast_nn_auto
+
 autoplot(forecast_nn_auto)+
-  labs(title = "Figure 2: Forecasts for CIN Bloomington July 2019 to May 2021", y = "$ Millions in revenue per month", x = "Time")
+  labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")
 
 ```
 Try to get a longitduinal data set with the number of payments per class
@@ -301,28 +278,35 @@ library(lmtest)
 bptest(model_9)
 
 
-com_1 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .75),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+com_1 <- data.frame(Commercial = mean(CIN_revenue_dat_month_dy$Commercial)*1.25,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.25)
 
-com_2 <- data.frame(Commercial =  quantile(CIN_revenue_dat_month_dy$Commercial, .50),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+com_2 <- data.frame(Commercial =  mean(CIN_revenue_dat_month_dy$Commercial)*1.15,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP))
 
-com_3 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .25),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
-
-
-medhip_1 <- data.frame(Medicaid_HIP = quantile(CIN_revenue_dat_month_dy$Medicaid_HIP, .75),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Commercial = mean(CIN_revenue_dat_month_dy$Commercial), MRO = mean(CIN_revenue_dat_month_dy$MRO))
-
-medhip_2 <- data.frame(Commercial =  quantile(CIN_revenue_dat_month_dy$Commercial, .50),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
-
-medhip_3 <- data.frame(Commercial = quantile(CIN_revenue_dat_month_dy$Commercial, .25),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), DCS = mean(CIN_revenue_dat_month_dy$DCS), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP), MRO = mean(CIN_revenue_dat_month_dy$MRO))
+com_3 <- data.frame(Commercial = mean(CIN_revenue_dat_month_dy$Commercial)*1.1,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP))
 
 
-plot_com =  dynsimGG(sim_com, leg.labels = c("25%", "15%", "5%")) +
+medhip_1 <- data.frame(Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.25,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Commercial = mean(CIN_revenue_dat_month_dy$Commercial))
+
+medhip_2 <- data.frame(Commercial =  mean(CIN_revenue_dat_month_dy$Commercial),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.15)
+
+medhip_3 <- data.frame(Commercial = mean(CIN_revenue_dat_month_dy$Commercial),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.1)
+
+sim_com_scen = list(com_1, com_2, com_3)
+sim_medhip_scen = list(medhip_1, medhip_2, medhip_3)
+
+sim_com_model = dynsim(obj = model_9, ldv = "revuneMinus1", scen = sim_com_scen, n = 20)
+sim_medhip_model = dynsim(obj = model_9, ldv = "revuneMinus1", scen = sim_medhip_scen, n = 20)
+
+
+
+plot_com =  dynsimGG(sim_com_model, leg.labels = c("25%", "15%", "5%")) +
   labs(title = "Figure 3: Increase in Commercial Payments June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
   theme(plot.title = element_text(size= 12))+
   theme(axis.title.x = element_text(size= 12))+
   theme(axis.title.y = element_text(size= 12))
 plot_com
 
-plot_medhip = dynsimGG(sim_medhip, leg.labels = c("25%", "15%", "5%")) +
+plot_medhip = dynsimGG(sim_medhip_model, leg.labels = c("25%", "15%", "5%")) +
   labs(title = "Increase in Medicaid and HIP Payments June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months", size = 12)+
   theme(plot.title = element_text(size= 12))+
   theme(axis.title.x = element_text(size= 12))+
@@ -334,7 +318,62 @@ library(ggpubr)
 6.1-4.7
 5.5-4.7
 ```
-################
+In paper math for comparison of projects to scenerios
+```{r}
+nn_auto_mean =  mean(forecast_nn_auto$mean)
+
+sim_com_mean_s1 = subset(sim_com, scenNumber == 1)
+describe.factor(sim_com_mean_s1$scenNumber)
+sim_com_mean_s1 = mean(sim_com_mean_s1$ldvMean)
+
+sim_com_mean_s2 = subset(sim_com, scenNumber == 2)
+describe.factor(sim_com_mean_s2$scenNumber)
+sim_com_mean_s2 = mean(sim_com_mean_s2$ldvMean)
+
+sim_com_mean_s3 = subset(sim_com, scenNumber == 3)
+describe.factor(sim_com_mean_s3$scenNumber)
+sim_com_mean_s3 = mean(sim_com_mean_s3$ldvMean)
+
+### S1 Com
+sim_com_mean_s1-nn_auto_mean
+sim_com_mean_s2-nn_auto_mean
+sim_com_mean_s3-nn_auto_mean
+
+
+
+sim_med_hip_mean_s1 = subset(sim_medhip, scenNumber == 1)
+describe.factor(sim_med_hip_mean_s1$scenNumber)
+sim_med_hip_mean_s1 = mean(sim_med_hip_mean_s1$ldvMean)
+
+sim_medhip_mean_s2 = subset(sim_medhip, scenNumber == 2)
+describe.factor(sim_medhip_mean_s2$scenNumber)
+sim_medhip_mean_s2 = mean(sim_medhip_mean_s2$ldvMean)
+
+sim_medhip_mean_s3 = subset(sim_medhip, scenNumber == 3)
+describe.factor(sim_medhip_mean_s3$scenNumber)
+sim_medhip_mean_s3 = mean(sim_medhip_mean_s3$ldvMean)
+
+sim_med_hip_mean_s1-nn_auto_mean
+sim_medhip_mean_s2-nn_auto_mean
+sim_medhip_mean_s3-nn_auto_mean
+```
+Try forecasting with neural network with the same values that you have below
+```{r}
+CIN_revenue_sim_fore = data.frame(revenue = CIN_revenue_sim$revenue, Commerical = CIN_revenue_sim$Commercial, Medicaid_HIP = CIN_revenue_sim$Medicaid_HIP)
+CIN_revenue_sim_fore = ts(CIN_revenue_sim_fore, start = c(2017, 7), end = c(2019,5), frequency = 12)
+xreg = data.frame(Commerical=CIN_revenue_sim_fore[,2], Medicaid_HIP = CIN_revenue_sim_fore[,3])
+nn_dy =  nnetar(CIN_revenue_sim_fore[,1], xreg = xreg)
+nn_dy 
+new_data = data.frame(Commerical = )
+nn_dy = forecast()
+
+```
+
+
+
+##############################################################
+Extra code
+##############################################################
 Model building for dynsim
 ```{r}
 model_1 = lm(revenue ~Agency +Commercial, data = CIN_revenue_dat_month_dy)
@@ -458,5 +497,14 @@ dynsimGG(sim_medhip_2_increase) +
   labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
   theme_grey(base_size = 12)
 
+```
+Test sample dat set to if the forecasts are similar yes nnetar is much better
+```{r}
+n_net = nnetar(sunspotarea)
+n_net_plot = autoplot(forecast(n_net, PI = TRUE))
+arima_model =  auto.arima(sunspotarea, seasonal = FALSE)
+arima_plot = autoplot(forecast(arima_model))
+accuracy(arima_model)
+accuracy(n_net)
 ```
 
