@@ -459,4 +459,13 @@ dynsimGG(sim_medhip_2_increase) +
   theme_grey(base_size = 12)
 
 ```
+Test sample dat set to if the forecasts are similar yes nnetar is much better
+```{r}
+n_net = nnetar(sunspotarea)
+n_net_plot = autoplot(forecast(n_net, PI = TRUE))
+arima_model =  auto.arima(sunspotarea, seasonal = FALSE)
+arima_plot = autoplot(forecast(arima_model))
+accuracy(arima_model)
+accuracy(n_net)
+```
 
