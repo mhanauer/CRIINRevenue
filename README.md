@@ -392,7 +392,7 @@ rnorm_com_15
 rnorm_medhip_10 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.1), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
 rnorm_medhip_10
 
-rnorm_medhip_15 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]*1.15), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.15), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
+rnorm_medhip_15 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.15), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
 rnorm_medhip_15
 
 all_dats = list(rnorm_com_05, rnorm_com_10, rnorm_com_15, rnorm_medhip_05, rnorm_medhip_10, rnorm_medhip_15)
@@ -549,64 +549,7 @@ checkresiduals(model_9)
 
 
 ##############################
-Try nnetear doesn't work when series is two times as long as freq for some odd reason
-```{r}
-#### Clean the June data
-head(CIN_revenue_dat)
-dim(CIN_revenue_dat)
-dim(CIN_revenue_8_30)
-CIN_revenue_8_30 = read.csv("CH16-37_20190830_123423.csv", header = TRUE)
-CIN_revenue_8_30
-CIN_revenue_8_30$Year.Month = str_replace_all(CIN_revenue_8_30$Year.Month, c("Jan" = "1", "Feb"="2", "Mar"="3", "Apr"="4", "May"="5", "Jun"="6", "Jul"="7", "Aug"="8", "Sep" = "9", "Oct"="10", "Nov"="11", "Dec"="12"))
-head(CIN_revenue_8_30)
-CIN_revenue_8_30$Year.Month = paste("1-",CIN_revenue_8_30$Year.Month, sep = "")
-head(CIN_revenue_8_30)
-CIN_revenue_8_30$Year.Month = dmy(CIN_revenue_8_30$Year.Month)
-describe.factor(CIN_revenue_8_30$Year.Month)
 
-#### Get rid of beyond June
-CIN_revenue_dat = subset(CIN_revenue_dat, Year.Month < "2019-06-01")
-describe.factor(CIN_revenue_dat$Year.Month)
-### Only grab June 
-CIN_revenue_8_30 = subset(CIN_revenue_8_30, Year.Month == "2019-06-01")
-describe.factor(CIN_revenue_8_30$Year.Month)
-### Combine the data sets
-CIN_revenue_dat = rbind(CIN_revenue_dat, CIN_revenue_8_30)
-```
-Dymsim can only do stable increases over time not dynamic increases over time
-```{r}
-test_quant = list()
-quants = seq(from = .5, to = .5+(.02*11), by =.02)
-#Did not work
-#quants = as.list(quants)
-#quants
-## Not the function tried with rnorm only the last value worked
-for(i in 1:length(quants)){
-  test_quant[[i]] = quantile(CIN_revenue_dat_month_dy$Medicaid_HIP, quants[[i]])
-}
-test_quant = data.frame(test_quant)
-test_quant =  t(test_quant)
-colnames(test_quant) = "quants"
-test_quant = data.frame(test_quant)
-rownames(test_quant) = c() 
-test_quant
-model_9
-
-medhip_2_increase = data.frame(Medicaid_HIP = test_quant$quants,revuneMinus1 =  rep(mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), 12), DCS = rep(mean(CIN_revenue_dat_month_dy$DCS), 12), Commercial =rep(mean(CIN_revenue_dat_month_dy$Commercial), 12), MRO = rep(mean(CIN_revenue_dat_month_dy$MRO)), 12)
-medhip_2_increase$X12 = NULL
-
-scen_com <- list(com_1, com_2, com_3)
-scen_medhip = list(medhip_1, medhip_2, medhip_3)
-sim_com <- dynsim(obj = model_9, ldv = "revuneMinus1", scen = scen_com, n = 12)
-sim_medhip <- dynsim(obj = model_9, ldv = "revuneMinus1", scen = scen_medhip, n = 12)
-
-### Test medhip 2% increase 
-sim_medhip_2_increase = dynsim(obj = model_9, ldv = "revuneMinus1", scen = medhip_2_increase, n = 12)
-dynsimGG(sim_medhip_2_increase) +
-  labs(title = "Scenario Monthly Revenue CIN Bloomington June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
-  theme_grey(base_size = 12)
-
-```
 Test sample dat set to if the forecasts are similar yes nnetar is much better
 ```{r}
 n_net = nnetar(sunspotarea)
