@@ -252,107 +252,10 @@ round(apply(CIN_revenue_desc[2:12], 2, sd),0)
 
 
 ```
-Try dynamic simulations
-```{r}
-library(dynsim)
-library(DataCombine)
-CIN_revenue_dat_month_dy = slide(CIN_revenue_sim, Var = "revenue")
-head(CIN_revenue_dat_month_dy)
-colnames(CIN_revenue_dat_month_dy)[14] = c("revuneMinus1")
-CIN_revenue_dat_month_dy$Agency  = ifelse(CIN_revenue_dat_month_dy$Agency == "Inf", 0, CIN_revenue_dat_month_dy$Agency)
-head(CIN_revenue_dat_month_dy)
 
 
-model_9 = lm(revenue ~revuneMinus1+Commercial  +Medicaid_HIP, data = CIN_revenue_dat_month_dy)
-summary(model_9)
-checkresiduals(model_9)
-library(car)
-vif(model_9)
-library(lmtest)
-bptest(model_9)
-CIN_revenue_dat_month_dy
-
-com_1 <- data.frame(Commercial = mean(CIN_revenue_dat_month_dy$Commercial)*1.25,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.25)
-
-com_2 <- data.frame(Commercial =  mean(CIN_revenue_dat_month_dy$Commercial)*1.15,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP))
-
-com_3 <- data.frame(Commercial = mean(CIN_revenue_dat_month_dy$Commercial)*1.1,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP))
-
-
-medhip_1 <- data.frame(Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.25,revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Commercial = mean(CIN_revenue_dat_month_dy$Commercial))
-
-medhip_2 <- data.frame(Commercial =  mean(CIN_revenue_dat_month_dy$Commercial),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.15)
-
-medhip_3 <- data.frame(Commercial = mean(CIN_revenue_dat_month_dy$Commercial),revuneMinus1 =  mean(CIN_revenue_dat_month_dy$revuneMinus1, na.rm = TRUE), Medicaid_HIP = mean(CIN_revenue_dat_month_dy$Medicaid_HIP)*1.1)
-
-sim_com_scen = list(com_1, com_2, com_3)
-sim_medhip_scen = list(medhip_1, medhip_2, medhip_3)
-
-sim_com_model = dynsim(obj = model_9, ldv = "revuneMinus1", scen = sim_com_scen, n = 20)
-sim_medhip_model = dynsim(obj = model_9, ldv = "revuneMinus1", scen = sim_medhip_scen, n = 20)
-
-
-
-plot_com =  dynsimGG(sim_com_model, leg.labels = c("25%", "15%", "5%")) +
-  labs(title = "Figure 3: Increase in Commercial Payments June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months")+
-  theme(plot.title = element_text(size= 12))+
-  theme(axis.title.x = element_text(size= 12))+
-  theme(axis.title.y = element_text(size= 12))
-plot_com
-
-plot_medhip = dynsimGG(sim_medhip_model, leg.labels = c("25%", "15%", "5%")) +
-  labs(title = "Increase in Medicaid and HIP Payments June 2019 to June 2020", y = "Predicted revenue in $ Millions", x = "Months", size = 12)+
-  theme(plot.title = element_text(size= 12))+
-  theme(axis.title.x = element_text(size= 12))+
-  theme(axis.title.y = element_text(size= 12))
-plot_medhip
-
-library(ggpubr)
-#ggarrange(plot_com, plot_medhip, ncol = 2)
-6.1-4.7
-5.5-4.7
-```
-In paper math for comparison of projects to scenerios
-```{r}
-nn_auto_mean =  mean(forecast_nn_auto$mean)
-
-sim_com_mean_s1 = subset(sim_com_model, scenNumber == 1)
-describe.factor(sim_com_mean_s1$scenNumber)
-sim_com_mean_s1 = mean(sim_com_mean_s1$ldvMean)
-
-sim_com_mean_s2 = subset(sim_com_model, scenNumber == 2)
-describe.factor(sim_com_mean_s2$scenNumber)
-sim_com_mean_s2 = mean(sim_com_mean_s2$ldvMean)
-
-sim_com_mean_s3 = subset(sim_com_model, scenNumber == 3)
-describe.factor(sim_com_mean_s3$scenNumber)
-sim_com_mean_s3 = mean(sim_com_mean_s3$ldvMean)
-
-### S1 Com
-sim_com_mean_s1-nn_auto_mean
-sim_com_mean_s2-nn_auto_mean
-sim_com_mean_s3-nn_auto_mean
-
-
-
-sim_med_hip_mean_s1 = subset(sim_medhip_model, scenNumber == 1)
-describe.factor(sim_med_hip_mean_s1$scenNumber)
-sim_med_hip_mean_s1 = mean(sim_med_hip_mean_s1$ldvMean)
-
-sim_medhip_mean_s2 = subset(sim_medhip_model, scenNumber == 2)
-describe.factor(sim_medhip_mean_s2$scenNumber)
-sim_medhip_mean_s2 = mean(sim_medhip_mean_s2$ldvMean)
-
-sim_medhip_mean_s3 = subset(sim_medhip_model, scenNumber == 3)
-describe.factor(sim_medhip_mean_s3$scenNumber)
-sim_medhip_mean_s3 = mean(sim_medhip_mean_s3$ldvMean)
-
-sim_med_hip_mean_s1-nn_auto_mean
-sim_medhip_mean_s2-nn_auto_mean
-sim_medhip_mean_s3-nn_auto_mean
-
-```
 Try forecasting with neural network with the same values that you have below
+Clean this part up
 ```{r}
 CIN_revenue_sim_fore = data.frame(revenue = CIN_revenue_sim$revenue, Commerical = CIN_revenue_sim$Commercial, Medicaid_HIP = CIN_revenue_sim$Medicaid_HIP)
 CIN_revenue_sim_fore = ts(CIN_revenue_sim_fore, start = c(2017, 7), end = c(2019,5), frequency = 12)
@@ -383,20 +286,24 @@ rnorm_com_05
 rnorm_medhip_05 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.05), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
 rnorm_medhip_05
 
-rnorm_com_10 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.10), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]), sd(CIN_revenue_sim_fore[,3]), n = 12))
-rnorm_com_10
-
-rnorm_com_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.15), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]), sd(CIN_revenue_sim_fore[,3]),n= 12))
+rnorm_com_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.15), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]), sd(CIN_revenue_sim_fore[,3]), n = 12))
 rnorm_com_15
 
-rnorm_medhip_10 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.1), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_medhip_10
+rnorm_medhip_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]*1.15), sd(CIN_revenue_sim_fore[,3]),n= 12))
+rnorm_com_15
 
-rnorm_medhip_15 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.15), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_medhip_15
+rnorm_com_25 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]*1.25), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
+rnorm_medhip_25
 
-all_dats = list(rnorm_com_05, rnorm_com_10, rnorm_com_15, rnorm_medhip_05, rnorm_medhip_10, rnorm_medhip_15)
+rnorm_medhip_25 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.25), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
+rnorm_medhip_25
+
+mean_model = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
+rnorm_medhip_25
+
+all_dats = list(rnorm_com_05, rnorm_com_15, rnorm_com_25, rnorm_medhip_05, rnorm_medhip_15, rnorm_medhip_25,mean_model)
 all_dats
+
 ```
 Predict NN
 ```{r}
