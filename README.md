@@ -2,10 +2,7 @@
   title: "Times Series with Revenue"
 output: html_document
 ---
-  
-  ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 Review revenue.  Get date in mdy format.  Need to change Jul to correct number and add day (1)
 ```{r}
 ## Revenue data
@@ -377,13 +374,63 @@ nn_model_train =  nnetar(CIN_revenue_dat_train[,1], xreg = xreg)
 accuracy(nn_model_train)
 nn_model_test = nnetar(CIN_revenue_dat_unit_test, model = nn_model_train)
 accuracy(nn_model_test)
+```
+Develop data sets for NN prediction
+```{r}
+medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.05), 12))
+new_data_medhip
 
-new_data = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.15), 12))
-new_data
+com_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]*1.05), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+new_data_com
 
-nn_dy_fore = forecast(nn_dy, xreg = new_data, PI = TRUE, h =12)
+rnorm_com_05 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.05), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+rnorm_com_05
+
+rnorm_medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_05
+
+medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.10), 12))
+new_data_medhip
+
+com_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]*1.10), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+new_data_com
+
+rnorm_com_10 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.10), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+rnorm_com_10
+
+rnorm_medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_10
+
+medhip_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.15), 12))
+new_data_medhip
+
+com_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]*1.15), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+new_data_com
+
+rnorm_com_05 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.05), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+rnorm_com_05
+
+rnorm_medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_05
+
+rnorm_com_10 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.10), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+rnorm_com_10
+
+rnorm_medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_10
+
+rnorm_com_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.15), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
+rnorm_com_15
+
+rnorm_medhip_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_15
+
+all_dats = list(medhip_05, medhip_10, medhip_15, com_05, com_10, com_15, rnorm_com_05, rnorm_com_10, rnorm_com_15, rnorm_medhip_05, rnorm_medhip_10, rnorm_medhip_15)
+```
+Predict NN
+```{r}
+nn_dy_ = forecast(nn_dy, xreg = new_data, PI = TRUE, h =12)
 autoplot(nn_dy_fore)
-
 
 ```
 
