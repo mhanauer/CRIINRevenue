@@ -135,7 +135,7 @@ Testing versus training: One shot testing with small amounts of data: https://ot
 
 
 ```{r}
-CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
+CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts
 head(CIN_revenue_dat_unit)
 
 arima_model =  auto.arima(CIN_revenue_dat_unit, seasonal = FALSE)
@@ -179,7 +179,7 @@ I think NNAR(1,1,2) mean one non-lagged value and maybe 1 seasonal lagged value,
 Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
 
-CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts[,2]
+CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts
 head(CIN_revenue_dat_unit)
 nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
@@ -377,61 +377,61 @@ accuracy(nn_model_test)
 ```
 Develop data sets for NN prediction
 ```{r}
+### Static 
 medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.05), 12))
-new_data_medhip
+medhip_05
 
 com_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]*1.05), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
-new_data_com
-
-rnorm_com_05 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.05), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
-rnorm_com_05
-
-rnorm_medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
-rnorm_medhip_05
+com_05
 
 medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.10), 12))
-new_data_medhip
+medhip_10
 
 com_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]*1.10), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
-new_data_com
-
-rnorm_com_10 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.10), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
-rnorm_com_10
-
-rnorm_medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
-rnorm_medhip_10
+com_10
 
 medhip_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]*1.15), 12))
-new_data_medhip
+medhip_15
 
 com_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]*1.15), 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
-new_data_com
+com_15
 
+
+### Random
 rnorm_com_05 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.05), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
 rnorm_com_05
 
-rnorm_medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_05 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
 rnorm_medhip_05
 
 rnorm_com_10 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.10), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
 rnorm_com_10
 
-rnorm_medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_10 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
 rnorm_medhip_10
 
 rnorm_com_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.15), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rep(mean(CIN_revenue_sim_fore[,3]), 12))
 rnorm_com_15
 
-rnorm_medhip_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3],n= 12)))
+rnorm_medhip_15 = data.frame(Commerical = rep(mean(CIN_revenue_sim_fore[,2]), 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
 rnorm_medhip_15
 
 all_dats = list(medhip_05, medhip_10, medhip_15, com_05, com_10, com_15, rnorm_com_05, rnorm_com_10, rnorm_com_15, rnorm_medhip_05, rnorm_medhip_10, rnorm_medhip_15)
+all_dats
 ```
 Predict NN
 ```{r}
-nn_dy_ = forecast(nn_dy, xreg = new_data, PI = TRUE, h =12)
-autoplot(nn_dy_fore)
 
+all_results = list()
+for(i in 1:length(all_dats)){
+all_results[[i]] = forecast(nn_dy, xreg = all_dats[[i]], PI = TRUE, h =12)
+}
+
+plot_results = list()
+for(i in 1:length(all_results)){
+  plot_results[[i]] = autoplot(all_results[[i]])
+}
+plot_results
 ```
 
 
