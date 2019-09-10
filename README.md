@@ -53,7 +53,7 @@ CIN_revenue_dat$Quarter = ifelse(CIN_revenue_dat$Year.Month < "2017-12-01", "Q4_
 describe.factor(CIN_revenue_dat$Quarter)
 
 ### Now generate the and create inflation based revenue
-#109.472
+#109.472  Inflation rates found in same folder were data is kept
 CIN_revenue_dat$inflation = ifelse(CIN_revenue_dat$Quarter == "Q4_2017", (109.472/106.646), ifelse(CIN_revenue_dat$Quarter == "Q1_2018", (109.472/107.03), ifelse(CIN_revenue_dat$Quarter == "Q2_2018", (109.472/107.672), ifelse(CIN_revenue_dat$Quarter == "Q3_2018", (109.472/108.045), ifelse(CIN_revenue_dat$Quarter == "Q4_2018", (109.472/108.61), ifelse(CIN_revenue_dat$Quarter == "Q1_2019", (109.472/108.949), ifelse(CIN_revenue_dat$Quarter == "Q2_2019", 1,"Wrong")))))))
 describe.factor(CIN_revenue_dat$inflation)
 CIN_revenue_dat$inflation = as.numeric(CIN_revenue_dat$inflation)
@@ -231,6 +231,8 @@ forecast_nn_auto
 
 autoplot(forecast_nn_auto)+
   labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")
+forecast_nn_auto
+mean(forecast_nn_auto$mean)-4584399
 
 ```
 Try to get a longitduinal data set with the number of payments per class
@@ -279,9 +281,9 @@ CIN_revenue_desc_sd = aggregate(.~Financial.Class.Value
 
 CIN_revenue_desc_all = data.frame(finacial_class = CIN_revenue_desc_total$Financial.Class.Value, mean_rev = CIN_revenue_desc_mean$Payments, total_rev = CIN_revenue_desc_total$Payments, sd_rev = CIN_revenue_desc_sd$Payments)
 CIN_revenue_desc_all = CIN_revenue_desc_all[order(-CIN_revenue_desc_all$mean_rev),]
-#CIN_revenue_desc_all[is.na(CIN_revenue_desc_all)] = 0
 CIN_revenue_desc_all = mutate_if(CIN_revenue_desc_all, is.numeric, round)
 CIN_revenue_desc_all
+write.csv(CIN_revenue_desc_all, "CIN_revenue_desc_all.csv", row.names = FALSE)
 ```
 
 Just present a regression model and demonstrate that only Mediciad and HIP and Commerical are actually significantly predicting revenue
@@ -300,7 +302,7 @@ confint(model_9)
 library(rstanarm)
 bayes_model =  stan_glm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_dat_month_dy, family = gaussian(link = "identity"))
 median(bayes_R2(bayes_model))
-#launch_shinystan(bayes_model)
+launch_shinystan(bayes_model)
 summary(bayes_model)
 ```
 
