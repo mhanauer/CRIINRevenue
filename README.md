@@ -4,6 +4,8 @@ output: html_document
 ---
 
 Review revenue.  Get date in mdy format.  Need to change Jul to correct number and add day (1)
+
+See PCE inflation rate for rates
 ```{r}
 ## Revenue data
 setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/SustainWorkshop/RevenueAnalysis")
@@ -44,6 +46,23 @@ CIN_revenue_dat = subset(CIN_revenue_dat, Financial.Class.Value != "Non-Recovera
 
 #### Get rid of any revenue that is zero
 CIN_revenue_dat = subset(CIN_revenue_dat, Payments > 0)
+head(CIN_revenue_dat)
+
+####Get the quarter variable
+CIN_revenue_dat$Quarter = ifelse(CIN_revenue_dat$Year.Month < "2017-12-01", "Q4_2017", ifelse(CIN_revenue_dat$Year.Month < "2018-03-01","Q1_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-6-01", "Q2_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-9-01", "Q3_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-12-01", "Q4_2018", ifelse(CIN_revenue_dat$Year.Month < "2019-03-01", "Q1_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-06-01", "Q2_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-09-01", "Q3_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-12-01", "Q4_2019", "Wrong"))))))))) 
+describe.factor(CIN_revenue_dat$Quarter)
+
+### Now generate the and create inflation based revenue
+#109.472
+CIN_revenue_dat$inflation = ifelse(CIN_revenue_dat$Quarter == "Q4_2017", (109.472/106.646), ifelse(CIN_revenue_dat$Quarter == "Q1_2018", (109.472/107.03), ifelse(CIN_revenue_dat$Quarter == "Q2_2018", (109.472/107.672), ifelse(CIN_revenue_dat$Quarter == "Q3_2018", (109.472/108.045), ifelse(CIN_revenue_dat$Quarter == "Q4_2018", (109.472/108.61), ifelse(CIN_revenue_dat$Quarter == "Q1_2019", (109.472/108.949), ifelse(CIN_revenue_dat$Quarter == "Q2_2019", 1,"Wrong")))))))
+describe.factor(CIN_revenue_dat$inflation)
+CIN_revenue_dat$inflation = as.numeric(CIN_revenue_dat$inflation)
+
+CIN_revenue_dat$Payments = CIN_revenue_dat$Payments*CIN_revenue_dat$inflation
+
+head(CIN_revenue_dat)
+CIN_revenue_dat$Quarter = NULL
+CIN_revenue_dat$inflation = NULL
 ```
 Now aggregate data by month
 ```{r}
@@ -246,143 +265,43 @@ CIN_revenue_sim$Non.Recoverable = NULL
 head(CIN_revenue_sim)
 ```
 Get descriptives
+Get the total amount per revenue finance class
 ```{r}
-round(apply(CIN_revenue_sim[2:12], 2, mean),0)
-round(apply(CIN_revenue_desc[2:12], 2, sd),0)
+head(CIN_revenue_dat)
+CIN_revenue_desc = CIN_revenue_dat[,c(2,4:5)]
+head(CIN_revenue_desc)
+CIN_revenue_desc_total = aggregate(.~Financial.Class.Value
+, data = CIN_revenue_desc, sum)
+CIN_revenue_desc_mean = aggregate(.~Financial.Class.Value
+, data = CIN_revenue_desc, mean)
+CIN_revenue_desc_sd = aggregate(.~Financial.Class.Value
+, data = CIN_revenue_desc, sd)
 
-
+CIN_revenue_desc_all = data.frame(finacial_class = CIN_revenue_desc_total$Financial.Class.Value, mean_rev = CIN_revenue_desc_mean$Payments, total_rev = CIN_revenue_desc_total$Payments, sd_rev = CIN_revenue_desc_sd$Payments)
+CIN_revenue_desc_all = CIN_revenue_desc_all[order(-CIN_revenue_desc_all$mean_rev),]
+#CIN_revenue_desc_all[is.na(CIN_revenue_desc_all)] = 0
+CIN_revenue_desc_all = mutate_if(CIN_revenue_desc_all, is.numeric, round)
+CIN_revenue_desc_all
 ```
 
-
-Try forecasting with neural network with the same values that you have below
-Clean this part up
+Just present a regression model and demonstrate that only Mediciad and HIP and Commerical are actually significantly predicting revenue
 ```{r}
-CIN_revenue_sim_fore = data.frame(revenue = CIN_revenue_sim$revenue, Commerical = CIN_revenue_sim$Commercial, Medicaid_HIP = CIN_revenue_sim$Medicaid_HIP)
-CIN_revenue_sim_fore = ts(CIN_revenue_sim_fore, start = c(2017, 7), end = c(2019,5), frequency = 12)
-xreg = data.frame(Commerical=CIN_revenue_sim_fore[,2], Medicaid_HIP = CIN_revenue_sim_fore[,3])
-nn_dy =  nnetar(CIN_revenue_sim_fore[,1], xreg = xreg)
-accuracy(nn_dy) 
-
-
-#### Compare training versus testing
-#### Model for both
-### Training versus testing
-CIN_revenue_dat_train = CIN_revenue_sim_fore[1:17,]
-1-(17/23)
-CIN_revenue_dat_test = CIN_revenue_sim_fore[18:23,]
-### Create xregs for this variable
-
-nn_model_train =  nnetar(CIN_revenue_dat_train[,1], xreg = xreg)
-accuracy(nn_model_train)
-nn_model_test = nnetar(CIN_revenue_dat_unit_test, model = nn_model_train)
-accuracy(nn_model_test)
-```
-Develop data sets for NN prediction
-```{r}
-set.seed(12345)
-rnorm_com_05 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.05), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]), sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_com_05
-
-rnorm_medhip_05 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.05), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_medhip_05
-
-rnorm_com_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]*1.15), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]), sd(CIN_revenue_sim_fore[,3]), n = 12))
-rnorm_com_15
-
-rnorm_medhip_15 = data.frame(Commerical = rnorm(mean = mean(CIN_revenue_sim_fore[,2]), sd = sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean(CIN_revenue_sim_fore[,3]*1.15), sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_com_15
-
-rnorm_com_25 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]*1.25), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_medhip_25
-
-rnorm_medhip_25 = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]*1.25), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_medhip_25
-
-mean_model = data.frame(Commerical = rnorm(mean(CIN_revenue_sim_fore[,2]), sd(CIN_revenue_sim_fore[,2]), n = 12), Medicaid_HIP =  rnorm(mean = mean(CIN_revenue_sim_fore[,3]), sd = sd(CIN_revenue_sim_fore[,3]),n= 12))
-rnorm_medhip_25
-
-all_dats = list(rnorm_com_05, rnorm_com_15, rnorm_com_25, rnorm_medhip_05, rnorm_medhip_15, rnorm_medhip_25,mean_model)
-all_dats
-
-```
-Predict NN
-```{r}
-all_results = list()
-for(i in 1:length(all_dats)){
-all_results[[i]] = forecast(nn_dy, xreg = all_dats[[i]], PI = TRUE, h =12)
-}
-
-plot_results = list()
-for(i in 1:length(all_results)){
-  plot_results[[i]] = autoplot(all_results[[i]])
-}
-
-all_means = list()
-for(i in 1:length(all_results)){
-  all_means[[i]] = mean(all_results[[i]]$mean)
-}
-all_means
-plot_all_results= data.frame(all_results)
-#rnorm_com_05, rnorm_com_10, rnorm_com_15, rnorm_medhip_05, rnorm_medhip_10, rnorm_medhip_15
-plot_all_results = data.frame(rnorm_com_05 = plot_all_results$Point.Forecast, rnorm_com_10 = plot_all_results$Point.Forecast.1, rnorm_com_15 = plot_all_results$Point.Forecast.2, rnorm_medhip_05 = plot_all_results$Point.Forecast.3, rnorm_medhip_10 = plot_all_results$Point.Forecast.4, rnorm_medhip_15 = plot_all_results$Point.Forecast.5)
-
-plot_all_results
-#CIN_revenue_dat_month_dy
-time0 = paste(06:12, "-", "01","-", "2019", sep = "")
-time0 = t(t(time0))
-time1 = paste(01:05, "-", "01", "-", "2020", sep = "")
-time1 =t(t(time1))
-time = rbind(time0,time1)
-time = data.frame(time)
-library(lubridate)
-time = mdy(time$time)
-time = data.frame(time)
-plot_all_results$time = time$time
-plot_all_results
-library(tidyr)
-library(reshape)
-plot_all_results = melt(plot_all_results, id = c("time"))
-colnames(plot_all_results)[2:3] = c("scenario", "revenue")
-plot_all_results
-plot_all_results_15 = subset(plot_all_results, scenario == "rnorm_com_15" | scenario=="rnorm_medhip_15")
-plot_all_results_10 = subset(plot_all_results, scenario == "rnorm_com_10" | scenario=="rnorm_medhip_10")
-plot_all_results_05 = subset(plot_all_results, scenario == "rnorm_com_05" | scenario=="rnorm_medhip_05")
-
-
-describe.factor(plot_all_results_15$scenario)
-
-plot_revenue_15 = ggplot(plot_all_results_15, aes(x = time, y = revenue, colour = factor(scenario)))+
-  geom_line()
-plot_revenue_15
-
-plot_revenue_10 = ggplot(plot_all_results_10, aes(x = time, y = revenue, colour = factor(scenario)))+
-  geom_line()
-plot_revenue_10
-
-plot_revenue_05 = ggplot(plot_all_results_05, aes(x = time, y = revenue, colour = factor(scenario)))+
-  geom_line()
-plot_revenue_05
-library(ggpubr)
-ggarrange(plot_revenue_15, plot_revenue_10, plot_revenue_05)
-
-
-library(descr)
-compmeans(plot_all_results$revenue, plot_all_results$scenario)
-```
-Further results comparing means (try some statistical tests)
-```{r}
-medhip_15 = forecast(nn_dy, xreg = rnorm_medhip_15, PI = TRUE, h =12)
-autoplot(medhip_15)
-
-medhip_10 = forecast(nn_dy, xreg = rnorm_medhip_10, PI = TRUE, h =12)
-autoplot(medhip_10)
-
-medhip_05 = forecast(nn_dy, xreg = rnorm_medhip_05, PI = TRUE, h =12)
-mean(medhip_05$mean)
-mean(medhip_10$mean)
-mean(medhip_15$mean)
-
-med_all
+model_9 = lm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_dat_month_dy)
+checkresiduals(model_9)
+hist(residuals(model_9))
+bptest(model_9)
+qqnorm(residuals(model_9))
+library(car)
+vif(model_9)
+sum_model_9 = summary(model_9)
+sum_model_9
+confint(model_9)
+### Run a Bayesian model
+library(rstanarm)
+bayes_model =  stan_glm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_dat_month_dy, family = gaussian(link = "identity"))
+median(bayes_R2(bayes_model))
+#launch_shinystan(bayes_model)
+summary(bayes_model)
 ```
 
 
@@ -448,9 +367,27 @@ summary(model_8)
 checkresiduals(model_8)
 
 CIN_revenue_dat_month_dy$Self.Pay
-model_9 = lm(revenue ~revuneMinus1+Commercial + DCS +Medicaid_HIP + MRO +Self.Pay, data = CIN_revenue_dat_month_dy)
-summary(model_9)
-checkresiduals(model_9)
+model_9_rev = lm(revenue ~revuneMinus1+Commercial +Medicaid_HIP, data = CIN_revenue_dat_month_dy)
+model_9_mro = lm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_dat_month_dy)
+AIC(model_9_rev)
+AIC(model_9_mro)
+BIC(model_9_rev)
+BIC(model_9_mro)
+summary(model_9_mro)
+summary(model_9_rev)
+```
+Looking into guarentor, but lot's variation in the top not sure if we need to get that specific
+```{r}
+### Do this by guarnter
+CIN_revenue_guar = CIN_revenue_dat[,c(3:5)]
+head(CIN_revenue_guar)
+CIN_revenue_desc_sum_guar = aggregate(.~Guarantor, data = CIN_revenue_guar, sum)
+CIN_revenue_desc_sd_guar = aggregate(.~Guarantor, data = CIN_revenue_guar, sd)
+CIN_revenue_desc_mean_guar = aggregate(.~Guarantor, data = CIN_revenue_guar, mean)
+CIN_revenue_desc_agg_guar = data.frame(Guarantor = CIN_revenue_desc_mean_guar$Guarantor,mean_rev = CIN_revenue_desc_mean_guar$Payments, total_rev = CIN_revenue_desc_sum_guar$Payments, sd_rev = CIN_revenue_desc_sd_guar$Payments)
+CIN_revenue_desc_agg_guar = CIN_revenue_desc_agg_guar[order(-CIN_revenue_desc_agg_guar$mean_rev),]
+CIN_revenue_desc_agg_guar = mutate_if(CIN_revenue_desc_agg_guar,is.numeric, ~round(., 3))
+CIN_revenue_desc_agg_guar
 ```
 
 
