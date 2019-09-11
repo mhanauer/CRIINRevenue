@@ -3,9 +3,7 @@
 output: html_document
 ---
 
-Review revenue.  Get date in mdy format.  Need to change Jul to correct number and add day (1)
-
-See PCE inflation rate for rates
+Clean the data 
 ```{r}
 ## Revenue data
 setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/SustainWorkshop/RevenueAnalysis")
@@ -19,39 +17,40 @@ library(stringr)
 library(fpp2)
 library(urca)
 head(CIN_revenue)
-colnames(CIN_revenue)[2] = "location"
 head(CIN_revenue)
 CIN_revenue_dat = CIN_revenue
 head(CIN_revenue_dat)
+#Replace the month with numbers
 CIN_revenue_dat$Year.Month = str_replace_all(CIN_revenue_dat$Year.Month, c("Jan" = "1", "Feb"="2", "Mar"="3", "Apr"="4", "May"="5", "Jun"="6", "Jul"="7", "Aug"="8", "Sep" = "9", "Oct"="10", "Nov"="11", "Dec"="12"))
 head(CIN_revenue_dat)
+#We do not have a complete date.  Need to add the day just assuming that day is the 1st for each data point.
 CIN_revenue_dat$Year.Month = paste("1-",CIN_revenue_dat$Year.Month, sep = "")
 head(CIN_revenue_dat)
 CIN_revenue_dat$Year.Month = dmy(CIN_revenue_dat$Year.Month)
 head(CIN_revenue_dat)
-
-CIN_revenue_dat$location = NULL
-###
-
+### Remove the location we will not have this later on
+CIN_revenue_dat$billing_tx_history.program_value = NULL
+head(CIN_revenue_dat)
 #### Need to remove the $ we are removing the .00 so divide by 100 to get original payment
 #### Then divide by 100 to get estimates in the hundreds of thousands
 CIN_revenue_dat$Payments = gsub("\\D", "", CIN_revenue_dat$Payments)
+
 CIN_revenue_dat$Payments = as.numeric(CIN_revenue_dat$Payments) 
 CIN_revenue_dat$Payments = CIN_revenue_dat$Payments / 100
 ### Get rid of anything before May
 CIN_revenue_dat = subset(CIN_revenue_dat, Year.Month < "2019-06-01")
-
+sum(CIN_revenue_dat$Year.Month == "2019-07-01")
 ### Get rid of non-recoverable
 CIN_revenue_dat = subset(CIN_revenue_dat, Financial.Class.Value != "Non-Recoverable")
-
+describe.factor(CIN_revenue_dat$Financial.Class.Value)
 #### Get rid of any revenue that is zero
 CIN_revenue_dat = subset(CIN_revenue_dat, Payments > 0)
+sum(CIN_revenue_dat$Payments <= 0)
 head(CIN_revenue_dat)
-
 ####Get the quarter variable
 CIN_revenue_dat$Quarter = ifelse(CIN_revenue_dat$Year.Month < "2017-12-01", "Q4_2017", ifelse(CIN_revenue_dat$Year.Month < "2018-03-01","Q1_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-6-01", "Q2_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-9-01", "Q3_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-12-01", "Q4_2018", ifelse(CIN_revenue_dat$Year.Month < "2019-03-01", "Q1_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-06-01", "Q2_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-09-01", "Q3_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-12-01", "Q4_2019", "Wrong"))))))))) 
 describe.factor(CIN_revenue_dat$Quarter)
-
+head(CIN_revenue_dat)
 ### Now generate the and create inflation based revenue
 #109.472  Inflation rates found in same folder were data is kept
 CIN_revenue_dat$inflation = ifelse(CIN_revenue_dat$Quarter == "Q4_2017", (109.472/106.646), ifelse(CIN_revenue_dat$Quarter == "Q1_2018", (109.472/107.03), ifelse(CIN_revenue_dat$Quarter == "Q2_2018", (109.472/107.672), ifelse(CIN_revenue_dat$Quarter == "Q3_2018", (109.472/108.045), ifelse(CIN_revenue_dat$Quarter == "Q4_2018", (109.472/108.61), ifelse(CIN_revenue_dat$Quarter == "Q1_2019", (109.472/108.949), ifelse(CIN_revenue_dat$Quarter == "Q2_2019", 1,"Wrong")))))))
@@ -232,11 +231,11 @@ forecast_nn_auto
 autoplot(forecast_nn_auto)+
   labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")
 forecast_nn_auto
+##Drop in revenue in Decemeber
 mean(forecast_nn_auto$mean)-4584399
 
 ```
-Try to get a longitduinal data set with the number of payments per class
-Average revenue per agency per month
+Getting total number of payments for each finance class per each month 
 ```{r}
 head(CIN_revenue_dat)
 describe.factor(CIN_revenue_dat$Financial.Class.Value)
