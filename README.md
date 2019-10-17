@@ -62,7 +62,13 @@ CIN_revenue_dat$Payments = CIN_revenue_dat$Payments*CIN_revenue_dat$inflation
 head(CIN_revenue_dat)
 CIN_revenue_dat$Quarter = NULL
 CIN_revenue_dat$inflation = NULL
+
 ```
+##### 
+We want the difference between the averages of the finaicnal class 
+We want to group by time and agency for the average payments
+
+
 Now aggregate data by month
 ```{r}
 head(CIN_revenue_dat)
@@ -236,6 +242,7 @@ mean(forecast_nn_auto$mean)-4584399
 
 ```
 Getting total number of payments for each finance class per each month 
+This will be used for the regression
 ```{r}
 head(CIN_revenue_dat)
 describe.factor(CIN_revenue_dat$Financial.Class.Value)
@@ -260,38 +267,126 @@ CIN_revenue_sim = data.frame(CIN_revenue_sim, dummy_class)
 head(CIN_revenue_sim)
 ### Combine Medicaid and HIP for later model
 CIN_revenue_sim$Medicaid_HIP = (CIN_revenue_sim$Medicaid+ CIN_revenue_sim$HIP)/2
+CIN_revenue_sim
 
-CIN_revenue_sim = aggregate(.~date, data = CIN_revenue_sim, sum)
+#CIN_revenue_sim = aggregate(.~date, data = CIN_revenue_sim, sum)
 CIN_revenue_sim$Non.Recoverable = NULL
 head(CIN_revenue_sim)
 ```
 Get descriptives
-Get the total amount per revenue finance class
+Over all tim eperiod
+
+Total number of payments per class
+Total revenue per class
+Mean payment per class
+
 ```{r}
 head(CIN_revenue_dat)
-CIN_revenue_desc = CIN_revenue_dat[,c(2,4:5)]
+
+CIN_revenue_desc = CIN_revenue_dat[,c(1,3, 5:6)]
 head(CIN_revenue_desc)
+
+### CIN_revenue_desc needs a mean payment
+CIN_revenue_desc$mean_payment = CIN_revenue_desc$Payments/CIN_revenue_desc$Number.of.Payments.Received
+describe(CIN_revenue_desc)
+CIN_revenue_desc
+
 CIN_revenue_desc_total = aggregate(.~Financial.Class.Value
 , data = CIN_revenue_desc, sum)
+CIN_revenue_desc_total
+
 CIN_revenue_desc_mean = aggregate(.~Financial.Class.Value
 , data = CIN_revenue_desc, mean)
+
+CIN_revenue_desc_mean
+
 CIN_revenue_desc_sd = aggregate(.~Financial.Class.Value
 , data = CIN_revenue_desc, sd)
-
-CIN_revenue_desc_all = data.frame(finacial_class = CIN_revenue_desc_total$Financial.Class.Value, mean_rev = CIN_revenue_desc_mean$Payments, total_rev = CIN_revenue_desc_total$Payments, sd_rev = CIN_revenue_desc_sd$Payments)
-CIN_revenue_desc_all = CIN_revenue_desc_all[order(-CIN_revenue_desc_all$mean_rev),]
+CIN_revenue_desc_sd
+CIN_revenue_desc_all = data.frame(finacial_class = CIN_revenue_desc_total$Financial.Class.Value, mean_payment_rev = CIN_revenue_desc_mean$mean_payment, sd_mean_payment = CIN_revenue_desc_sd$mean_payment, total_rev = CIN_revenue_desc_total$Payments, total_num_payments = CIN_revenue_desc_total$Number.of.Payments.Received)
+CIN_revenue_desc_all = CIN_revenue_desc_all[order(-CIN_revenue_desc_all$mean_payment_rev),]
+library(tidyr)
+library(dplyr)
 CIN_revenue_desc_all = mutate_if(CIN_revenue_desc_all, is.numeric, round)
+CIN_revenue_desc_all = subset(CIN_revenue_desc_all, total_num_payments > 2000)
 CIN_revenue_desc_all
 write.csv(CIN_revenue_desc_all, "CIN_revenue_desc_all.csv", row.names = FALSE)
 ```
+Now get t-tests
+NOt normal
+```{r}
+CIN_revenue_stats = CIN_revenue_desc
+hist(CIN_revenue_stats$mean_payment)
+
+dcs =  subset(CIN_revenue_stats, Financial.Class.Value == "DCS")
+mro = subset(CIN_revenue_stats, Financial.Class.Value == "MRO")
+hip = subset(CIN_revenue_stats, Financial.Class.Value == "HIP")
+grant = subset(CIN_revenue_stats, Financial.Class.Value == "Grant")
+medicaid = subset(CIN_revenue_stats, Financial.Class.Value == "Medicaid")
+commercial = subset(CIN_revenue_stats, Financial.Class.Value == "Commercial")
+
+########DCS
+wilcox.test(dcs$mean_payment, mro$mean_payment)
+wilcox.test(dcs$mean_payment, hip$mean_payment)
+wilcox.test(dcs$mean_payment, grant$mean_payment)
+wilcox.test(dcs$mean_payment, medicaid$mean_payment)
+wilcox.test(dcs$mean_payment, commercial$mean_payment)
+
+#######MRO
+wilcox.test(mro$mean_payment, hip$mean_payment)
+wilcox.test(mro$mean_payment, grant$mean_payment)
+wilcox.test(mro$mean_payment, medicaid$mean_payment)
+wilcox.test(mro$mean_payment, commercial$mean_payment)
+
+#######HIP
+wilcox.test(hip$mean_payment, grant$mean_payment)
+wilcox.test(hip$mean_payment, medicaid$mean_payment)
+wilcox.test(hip$mean_payment, commercial$mean_payment)
+
+#######Grant
+wilcox.test(grant$mean_payment, medicaid$mean_payment)
+wilcox.test(grant$mean_payment, commercial$mean_payment)
+
+#######Medicaid
+wilcox.test(medicaid$mean_payment, commercial$mean_payment)
+
+
+```
+Plot top six over time
+
+DCS,MRO, HIP, Grant, Medicaid, Commercial
+```{r}
+CIN_revenue_stats_plot = CIN_revenue_stats
+CIN_revenue_stats_plot = subset(CIN_revenue_stats_plot, Financial.Class.Value == "DCS" |  Financial.Class.Value == "MRO" | Financial.Class.Value == "HIP" | Financial.Class.Value == "Grant" | Financial.Class.Value == "Medicaid" | Financial.Class.Value == "Commercial")
+
+describe.factor(CIN_revenue_stats_plot$Financial.Class.Value)
+
+library(tidyr)
+
+CIN_revenue_stats_plot =  CIN_revenue_stats_plot %>%
+  group_by(Financial.Class.Value, Year.Month) %>%
+  summarise_all(funs(mean))
+CIN_revenue_stats_plot
+
+ggplot(CIN_revenue_stats_plot, aes(x = Year.Month, y = mean_payment))+
+  geom_line(aes(colour = factor(Financial.Class.Value)))
+  
+
+```
+
+
+
 
 Just present a regression model and demonstrate that only Mediciad and HIP and Commerical are actually significantly predicting revenue
 ```{r}
-model_9 = lm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_dat_month_dy)
+model_9 = lm(revenue ~Commercial +Medicaid_HIP+DCS + MRO, data = CIN_revenue_sim)
+
+dim(CIN_revenue_sim)
 checkresiduals(model_9)
 hist(residuals(model_9))
 bptest(model_9)
 qqnorm(residuals(model_9))
+install.packages("haven")
 library(car)
 vif(model_9)
 sum_model_9 = summary(model_9)
@@ -299,10 +394,11 @@ sum_model_9
 confint(model_9)
 ### Run a Bayesian model
 library(rstanarm)
-bayes_model =  stan_glm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_dat_month_dy, family = gaussian(link = "identity"))
+bayes_model =  stan_glm(revenue ~Commercial +Medicaid_HIP+MRO, data = CIN_revenue_sim, family = gaussian(link = "identity"))
 median(bayes_R2(bayes_model))
 launch_shinystan(bayes_model)
 summary(bayes_model)
+83*23
 ```
 
 
