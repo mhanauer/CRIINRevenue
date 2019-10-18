@@ -260,6 +260,15 @@ CIN_revenue_desc_all = mutate_if(CIN_revenue_desc_all, is.numeric, round)
 CIN_revenue_desc_all = subset(CIN_revenue_desc_all, total_num_payments > 2000)
 CIN_revenue_desc_all
 write.csv(CIN_revenue_desc_all, "CIN_revenue_desc_all.csv", row.names = FALSE)
+
+
+#### MRO percentage of total revenue
+total_rev = sum(CIN_revenue_desc_all$total_rev)
+mro_rev = CIN_revenue_desc_all[2,4]
+
+mro_p_rev = round(mro_rev / total_rev,2)
+mro_p_rev
+
 ```
 ####################
 Plots
@@ -329,12 +338,29 @@ ggplot(CIN_revenue_stats_plot_mean, aes(x = Year.Month, y = mean_payment))+
 ### Total number of services
  ggplot(CIN_revenue_stats_plot_total, aes(x = Year.Month, y = Number.of.Payments.Received))+
   geom_line(aes(colour = Financial.Class.Value))+
-  ggtitle("Figure 4: Total services by financial class")+
+  ggtitle("Figure 4: Total payments by financial class")+
   xlab("Time")+
   ylab("Total services")+
   scale_x_date(breaks= as.Date(c("2017-06-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01")), labels = date_format("%m/%Y"))+
-  labs(color='Financial class')
+  labs(color='Financial class')+
+   scale_y_continuous(labels = comma)
 
+### Total revenue
+ ### Total number of services
+
+ 
+ ggplot(CIN_revenue_stats_plot_total, aes(x = Year.Month, y = Payments))+
+  geom_line(aes(colour = Financial.Class.Value))+
+  ggtitle("Figure 5: Total revenue by financial class")+
+  xlab("Time")+
+  ylab("Total revenue")+
+  scale_x_date(breaks= as.Date(c("2017-06-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01")), labels = date_format("%m/%Y"))+
+  labs(color='Financial class')+
+   scale_y_continuous(labels = dollar)
+ 
+ 
+####How much revenue comes from MRO
+CIN_revenue_stats_plot_total
 
 
 ```
@@ -396,3 +422,15 @@ wilcox.test(medicaid_month$mean_payment, commercial_month$mean_payment)
 
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
