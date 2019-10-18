@@ -17,6 +17,10 @@ library(ggplot2)
 library(stringr)
 library(fpp2)
 library(urca)
+library(psych)
+library(prettyR)
+library(tidyr)
+library(dplyr)
 head(CIN_revenue)
 head(CIN_revenue)
 CIN_revenue_dat = CIN_revenue
@@ -71,7 +75,6 @@ Data cleaning
 ############################
 ```{r}
 head(CIN_revenue_dat)
-library(prettyR)
 describe.factor(CIN_revenue_dat$Year.Month)
 CIN_revenue_dat_month = data.frame(date =  CIN_revenue_dat$Year.Month, revenue = CIN_revenue_dat$Payments)
 CIN_revenue_dat_month$revenue = as.numeric(CIN_revenue_dat_month$revenue)
@@ -81,7 +84,7 @@ CIN_revenue_dat_month = aggregate(.~date, data = CIN_revenue_dat_month, sum)
 head(CIN_revenue_dat_month)
 dim(CIN_revenue_dat_month)
 CIN_revenue_dat_month$revenue = round((CIN_revenue_dat_month$revenue))
-CIN_revenue_dat_month
+
 
 ## Get rid of date
 CIN_revenue_dat_month$date = NULL
@@ -89,7 +92,7 @@ dim(CIN_revenue_dat_month)
 head(CIN_revenue_dat_month)
 CIN_revenue_dat_month_ts = ts(CIN_revenue_dat_month, start = c(2017, 7), end = c(2019,5), frequency = 12)
 head(CIN_revenue_dat_month_ts)
-CIN_revenue_dat_month_ts
+
 ```
 ################
 Plotting revenue by month
@@ -253,8 +256,6 @@ CIN_revenue_desc_sd = aggregate(.~Financial.Class.Value
 CIN_revenue_desc_sd
 CIN_revenue_desc_all = data.frame(finacial_class = CIN_revenue_desc_total$Financial.Class.Value, mean_payment_rev = CIN_revenue_desc_mean$mean_payment, sd_mean_payment = CIN_revenue_desc_sd$mean_payment, total_rev = CIN_revenue_desc_total$Payments, total_num_payments = CIN_revenue_desc_total$Number.of.Payments.Received)
 CIN_revenue_desc_all = CIN_revenue_desc_all[order(-CIN_revenue_desc_all$mean_payment_rev),]
-library(tidyr)
-library(dplyr)
 CIN_revenue_desc_all = mutate_if(CIN_revenue_desc_all, is.numeric, round)
 CIN_revenue_desc_all = subset(CIN_revenue_desc_all, total_num_payments > 2000)
 CIN_revenue_desc_all
@@ -273,7 +274,10 @@ Plot top six over time
 
 DCS,MRO, HIP, Grant, Medicaid, Commercial
 ```{r}
-CIN_revenue_stats_plot = CIN_revenue_stats
+CIN_revenue_stats_plot = CIN_revenue_dat[,c(1,2,4,5)]
+CIN_revenue_stats_plot$mean_payment = CIN_revenue_stats_plot$Payments/CIN_revenue_stats_plot$Number.of.Payments.Received
+
+CIN_revenue_stats_plot = 
 CIN_revenue_stats_plot = subset(CIN_revenue_stats_plot, Financial.Class.Value == "DCS" |  Financial.Class.Value == "MRO" | Financial.Class.Value == "HIP" | Financial.Class.Value == "Grant" | Financial.Class.Value == "Medicaid" | Financial.Class.Value == "Commercial")
 
 describe.factor(CIN_revenue_stats_plot$Financial.Class.Value)
@@ -284,17 +288,12 @@ library(tidyr)
 CIN_revenue_stats_plot_mean =  CIN_revenue_stats_plot %>%
   group_by(Financial.Class.Value, Year.Month) %>%
   summarise_all(funs(mean))
-CIN_revenue_stats_plot
 
-ggplot(CIN_revenue_stats_plot_mean, aes(x = Year.Month, y = mean_payment))+
-  geom_line(aes(colour = factor(Financial.Class.Value)))
-
-CIN_revenue_stats_plot
 
 CIN_revenue_stats_plot_total =  CIN_revenue_stats_plot %>%
   group_by(Financial.Class.Value, Year.Month) %>%
   summarise_all(funs(sum))
-CIN_revenue_stats_plot
+
 
 
 ```
@@ -319,17 +318,18 @@ max <- as.Date("2019-1-1")
 
 ggplot(CIN_revenue_stats_plot_mean, aes(x = Year.Month, y = mean_payment))+
   geom_line(aes(colour = Financial.Class.Value))+
-  ggtitle("Mean payment by financial class")+
+  ggtitle("Figure 3: Mean payment by financial class")+
   xlab("Time")+
   ylab("Mean payment")+
   scale_x_date(breaks= as.Date(c("2017-06-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01")), labels = date_format("%m/%Y"))+
-  labs(color='Financial class') 
+  labs(color='Financial class')+
+  scale_y_continuous(labels = dollar)
   
 
 ### Total number of services
  ggplot(CIN_revenue_stats_plot_total, aes(x = Year.Month, y = Number.of.Payments.Received))+
   geom_line(aes(colour = Financial.Class.Value))+
-  ggtitle("Total services by finanical class")+
+  ggtitle("Figure 4: Total services by financial class")+
   xlab("Time")+
   ylab("Total services")+
   scale_x_date(breaks= as.Date(c("2017-06-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01")), labels = date_format("%m/%Y"))+
@@ -348,54 +348,51 @@ Notes
 ##############
 Subet each of the top six into own data set for later analysis
 ```{r}
-dcs_month =  subset(CIN_revenue_stats_plot, Financial.Class.Value == "DCS")
-mro_month = subset(CIN_revenue_stats_plot, Financial.Class.Value == "MRO")
-hip_month = subset(CIN_revenue_stats_plot, Financial.Class.Value == "HIP")
-grant_month = subset(CIN_revenue_stats_plot, Financial.Class.Value == "Grant")
-medicaid_month = subset(CIN_revenue_stats_plot, Financial.Class.Value == "Medicaid")
-commercial_month = subset(CIN_revenue_stats_plot, Financial.Class.Value == "Commercial")
+dcs_month =  subset(CIN_revenue_stats_plot_mean, Financial.Class.Value == "DCS")
+mro_month = subset(CIN_revenue_stats_plot_mean, Financial.Class.Value == "MRO")
+hip_month = subset(CIN_revenue_stats_plot_mean, Financial.Class.Value == "HIP")
+grant_month = subset(CIN_revenue_stats_plot_mean, Financial.Class.Value == "Grant")
+medicaid_month = subset(CIN_revenue_stats_plot_mean, Financial.Class.Value == "Medicaid")
+commercial_month = subset(CIN_revenue_stats_plot_mean, Financial.Class.Value == "Commercial")
 ```
 ##################
 Monthly comparisons
 Analysis
 ##################
+
+#################
+Notes
+#################
+HIP, GRANT, Medicaid no different
+
 ```{r}
+.05/15
+
+757/149
 ########DCS
 wilcox.test(dcs_month$mean_payment, mro_month$mean_payment)
 wilcox.test(dcs_month$mean_payment, hip_month$mean_payment)
 wilcox.test(dcs_month$mean_payment, grant_month$mean_payment)
-wilcox.test(dcs_month$mean_payment, medicaid$mean_payment)
+wilcox.test(dcs_month$mean_payment, medicaid_month$mean_payment)
 wilcox.test(dcs_month$mean_payment, commercial_month$mean_payment)
 
 #######MRO
 wilcox.test(mro_month$mean_payment, hip_month$mean_payment)
 wilcox.test(mro_month$mean_payment, grant_month$mean_payment)
-wilcox.test(mro_month$mean_payment, medicaid$mean_payment)
+wilcox.test(mro_month$mean_payment, medicaid_month$mean_payment)
 wilcox.test(mro_month$mean_payment, commercial_month$mean_payment)
 
 #######HIP
 wilcox.test(hip_month$mean_payment, grant_month$mean_payment)
-wilcox.test(hip_month$mean_payment, medicaid$mean_payment)
+wilcox.test(hip_month$mean_payment, medicaid_month$mean_payment)
 wilcox.test(hip_month$mean_payment, commercial_month$mean_payment)
 
 #######Grant
-wilcox.test(grant_month$mean_payment, medicaid$mean_payment)
+wilcox.test(grant_month$mean_payment, medicaid_month$mean_payment)
 wilcox.test(grant_month$mean_payment, commercial_month$mean_payment)
 
 #######Medicaid
-wilcox.test(medicaid$mean_payment, commercial_month$mean_payment)
+wilcox.test(medicaid_month$mean_payment, commercial_month$mean_payment)
 
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
