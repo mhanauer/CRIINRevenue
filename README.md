@@ -53,8 +53,10 @@ CIN_revenue_dat = subset(CIN_revenue_dat, Payments > 0)
 sum(CIN_revenue_dat$Payments <= 0)
 head(CIN_revenue_dat)
 ####Get the quarter variable
-CIN_revenue_dat$Quarter = ifelse(CIN_revenue_dat$Year.Month < "2017-12-01", "Q4_2017", ifelse(CIN_revenue_dat$Year.Month < "2018-03-01","Q1_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-6-01", "Q2_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-9-01", "Q3_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-12-01", "Q4_2018", ifelse(CIN_revenue_dat$Year.Month < "2019-03-01", "Q1_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-06-01", "Q2_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-09-01", "Q3_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-12-01", "Q4_2019", "Wrong"))))))))) 
+CIN_revenue_dat$Quarter = ifelse(CIN_revenue_dat$Year.Month < "2017-12-01", "Q4_2017", ifelse(CIN_revenue_dat$Year.Month < "2018-04-01","Q1_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-07-01", "Q2_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-10-01", "Q3_2018", ifelse(CIN_revenue_dat$Year.Month < "2018-01-01", "Q4_2018", ifelse(CIN_revenue_dat$Year.Month < "2019-04-01", "Q1_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-07-01", "Q2_2019", ifelse(CIN_revenue_dat$Year.Month < "2019-10-01", "Q3_2019", ifelse(CIN_revenue_dat$Year.Month < "2020-01-01", "Q4_2019", "Wrong"))))))))) 
 describe.factor(CIN_revenue_dat$Quarter)
+CIN_revenue_dat
+
 head(CIN_revenue_dat)
 ### Now generate the and create inflation based revenue
 #109.472  Inflation rates found in same folder were data is kept
@@ -107,7 +109,8 @@ Trend: long term increase or increase; Season = short term predictable with some
 ```{r}
 ggseasonplot(CIN_revenue_dat_month_ts) +
   ylab("$ Millions")+
-  ggtitle("Figure 1: Revenue per year")
+  ggtitle("Figure 1: Revenue per year")+
+  scale_y_continuous(labels = dollar)
 
 ```
 ####################################################
@@ -193,7 +196,7 @@ Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
 CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts
 head(CIN_revenue_dat_unit)
-nn_auto = nnetar(CIN_revenue_dat_unit[,2])
+nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
@@ -222,7 +225,9 @@ forecast_nn_auto = forecast(nn_auto, PI = TRUE, h = 12)
 forecast_nn_auto
 
 autoplot(forecast_nn_auto)+
-  labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")
+  labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")+
+  scale_y_continuous(labels = dollar)
+  
 forecast_nn_auto
 ##Drop in revenue in Decemeber
 mean(forecast_nn_auto$mean)-4584399
@@ -285,7 +290,6 @@ DCS,MRO, HIP, Grant, Medicaid, Commercial
 ```{r}
 CIN_revenue_stats_plot = CIN_revenue_dat[,c(1,2,4,5)]
 CIN_revenue_stats_plot$mean_payment = CIN_revenue_stats_plot$Payments/CIN_revenue_stats_plot$Number.of.Payments.Received
-
 CIN_revenue_stats_plot = 
 CIN_revenue_stats_plot = subset(CIN_revenue_stats_plot, Financial.Class.Value == "DCS" |  Financial.Class.Value == "MRO" | Financial.Class.Value == "HIP" | Financial.Class.Value == "Grant" | Financial.Class.Value == "Medicaid" | Financial.Class.Value == "Commercial")
 
@@ -338,16 +342,15 @@ ggplot(CIN_revenue_stats_plot_mean, aes(x = Year.Month, y = mean_payment))+
 ### Total number of services
  ggplot(CIN_revenue_stats_plot_total, aes(x = Year.Month, y = Number.of.Payments.Received))+
   geom_line(aes(colour = Financial.Class.Value))+
-  ggtitle("Figure 4: Total payments by financial class")+
+  ggtitle("Figure 4: Total number of payments by financial class")+
   xlab("Time")+
-  ylab("Total services")+
+  ylab("Total payments")+
   scale_x_date(breaks= as.Date(c("2017-06-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01")), labels = date_format("%m/%Y"))+
   labs(color='Financial class')+
    scale_y_continuous(labels = comma)
 
 ### Total revenue
  ### Total number of services
-
  
  ggplot(CIN_revenue_stats_plot_total, aes(x = Year.Month, y = Payments))+
   geom_line(aes(colour = Financial.Class.Value))+
@@ -419,8 +422,6 @@ wilcox.test(grant_month$mean_payment, commercial_month$mean_payment)
 
 #######Medicaid
 wilcox.test(medicaid_month$mean_payment, commercial_month$mean_payment)
-
-
 ```
 
 
