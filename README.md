@@ -193,7 +193,7 @@ Feed forward model I am assuming a sigmoid function for hidden layers.
 ```{r}
 CIN_revenue_dat_unit =  CIN_revenue_dat_month_ts
 head(CIN_revenue_dat_unit)
-nn_auto = nnetar(CIN_revenue_dat_unit[,2])
+nn_auto = nnetar(CIN_revenue_dat_unit)
 summary(nn_auto)
 nn_auto
 ### evaluate accuracy
@@ -222,7 +222,10 @@ forecast_nn_auto = forecast(nn_auto, PI = TRUE, h = 12)
 forecast_nn_auto
 
 autoplot(forecast_nn_auto)+
-  labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")
+  labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")+
+ #scale_x_date(breaks= as.Date(c("2017-06-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01", "2020-01-01")), labels = date_format("%m/%Y"))+
+  labs(color='Financial class')+
+   scale_y_continuous(labels = dollar)
 forecast_nn_auto
 ##Drop in revenue in Decemeber
 mean(forecast_nn_auto$mean)-4584399
