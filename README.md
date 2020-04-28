@@ -220,10 +220,13 @@ data("auscafe")
 auscafe
 training = subset(auscafe, end = length(auscafe)-61)
 
+test = auto.arima(training, seasonal = TRUE)
 ### Forcast model
 forecast_model = forecast(arima_model_train, CIN_revenue_dat_month_ts_unit_test, h = 4)
 summary(forecast_model)
 autoplot(forecast_model)
+accuracy(arima_model_train)
+accuracy(test)
 
 autoplot(forecast_model)+
   labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")+
