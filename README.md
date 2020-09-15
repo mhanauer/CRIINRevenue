@@ -210,12 +210,12 @@ library(lmtest)
 accuracy(nn_auto)
 #### Compare training versus testing
 #### Model for both
-CIN_revenue_dat_unit_train
 
-nn_model_train =  nnetar(CIN_revenue_dat_unit_train)
-accuracy(nn_model_train)
-nn_model_test = nnetar(CIN_revenue_dat_unit_test, model = nn_model_train)
-accuracy(nn_model_test)
+
+#nn_model_train =  nnetar(CIN_revenue_dat_unit_train)
+#accuracy(nn_model_train)
+#nn_model_test = nnetar(CIN_revenue_dat_unit_test, model = nn_model_train)
+#accuracy(nn_model_test)
 
 ### compare accuracy
 accuracy(nn_auto)
@@ -226,7 +226,7 @@ forecast_nn_auto
 
 
 autoplot(forecast_nn_auto)+
-  labs(title = "Figure 2: Forecasts for CIN Bloomington June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")+
+  labs(title = "Figure 2: Forecasts for CIN June 2019 to June 2020", y = "$ Millions in revenue per month", x = "Year")+
  #scale_x_date(breaks= as.Date(c("2017-05-01", "2018-01-01", "2018-06-01", "2019-01-01", "2019-05-01", "2020-01-01")), labels = date_format("%m/%Y"))+
   labs(color='level')+
    scale_y_continuous(labels = dollar)
